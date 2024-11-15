@@ -4,6 +4,12 @@ macro_rules! build_pipeline {
         $processor
     };
 
+    ($processors:expr) => {{
+        let mut iter = $processors.into_iter();
+        let first = iter.next().expect("Pipeline must have at least one processor");
+        iter.fold(first, |acc, proc| acc.then(proc))
+    }};
+
     // If multiple processors are passed, chain them together recursively
     ($first:expr, $($rest:expr),+) => {{
         let first_processor = $first;

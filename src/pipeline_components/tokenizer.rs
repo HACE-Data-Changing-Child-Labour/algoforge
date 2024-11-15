@@ -1,16 +1,19 @@
 use std::borrow::Cow;
 
+use pyo3::pyclass;
+
 use crate::pipeline_builder::Processor;
 
+#[pyclass]
 pub struct Tokenizer;
 
 /// Tokenizer is special in regards to lifetimes
 /// as it creates new owned strings
 /// therefore we're returning with 'static
-impl Processor<String> for Tokenizer {
-    type Output = Vec<Cow<'static, str>>;
+impl<'a> Processor<Cow<'a, str>> for Tokenizer {
+    type Output = Vec<Cow<'a, str>>;
 
-    fn process(&self, input: String) -> Self::Output {
+    fn process(&self, input: Cow<'a, str>) -> Self::Output {
         input
             .split_whitespace()
             .filter(|s| !s.is_empty())

@@ -6,7 +6,9 @@ mod pipeline_components;
 use std::path::PathBuf;
 
 use crate::pipeline_builder::{Chainable, Processor};
-use pipeline_components::{Lemmatizer, SpellingMapper, ToLowerCase, Tokenizer};
+use pipeline_components::{
+    Lemmatizer, PostProcessor, PreProcessor, SpellingMapper, ToLowerCase, Tokenizer,
+};
 use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     ThreadPoolBuilder,
@@ -26,11 +28,21 @@ fn main() {
     // Using Cow::Owned is similarly performant as using Strings
     // (except the inexpensive branch check of Cow::Owned || Cow::Borrowed)
 
+    let pre_processor = PreProcessor;
+    let post_processor = PostProcessor;
     let tokenizer = Tokenizer;
     let to_lower = ToLowerCase;
     let spelling_mapper = SpellingMapper::new(PathBuf::from("data/spelling_map.csv")).unwrap();
     let lemmatizer = Lemmatizer::new(PathBuf::from("data/lemma_map.csv")).unwrap();
-    let pipeline = build_pipeline!(tokenizer, to_lower, spelling_mapper, lemmatizer);
+
+    let pipeline = build_pipeline!(
+        pre_processor,
+        tokenizer,
+        to_lower,
+        spelling_mapper,
+        lemmatizer,
+        post_processor
+    );
 
     let inputs = vec![
         "Hello World hello".to_string(),
