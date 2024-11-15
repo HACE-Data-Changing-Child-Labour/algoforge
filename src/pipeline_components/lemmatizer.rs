@@ -3,8 +3,10 @@ use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use crate::{error::LibError, pipeline_builder::Processor};
 
 /// Lemmatizer using:
-/// English Lemma Database - Compiled by Referencing British National Corpus
-/// Source: https://github.com/skywind3000/lemma.en
+/// English Lemma Database (if default CSV is used)
+/// Compiled by Referencing British National Corpus
+/// ASSUMES USAGE OF BRITISH ENGLISH
+/// SOURCE: https://github.com/skywind3000/lemma.en
 pub struct Lemmatizer {
     lemma_map: HashMap<String, Vec<String>>,
 }
@@ -60,11 +62,12 @@ impl<'a> Processor<Vec<Cow<'a, str>>> for Lemmatizer {
             .map(|word| {
                 // Keep the original Cow if it's already a lemma
                 if self.lemma_map.contains_key(word.as_ref()) {
-                    Cow::Owned(word.to_string())
+                    word
                 } else {
                     // Check derivatives
                     for (lemma, derivatives) in &self.lemma_map {
                         if derivatives.iter().any(|d| d == word.as_ref()) {
+                            // If found, take the lemma and return it owned
                             return Cow::Owned(lemma.clone());
                         }
                     }

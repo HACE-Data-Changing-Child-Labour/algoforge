@@ -2,12 +2,14 @@ use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 
 use crate::{error::LibError, pipeline_builder::Processor};
 
-/// Folds the spelling of the words
-/// down to the spelling provided
-/// as keys in the dictionary
+/// Maps the spelling of a provided word
+/// to the target spelling provided as
+/// keys in the dictionary
+/// SOURCE: Breame project
+/// https://github.com/cdpierse/breame/blob/main/breame/data/spelling_constants.py
 /// * Example:
 /// ```
-/// let spelling_folder = SpellingFolder {
+/// let spelling_mapper = SpellingMapper {
 ///     spelling_map: HashMap::from([
 ///         ("labor".to_string(), "labour".to_string()),
 ///         ("aluminum".to_string(), "aluminium".to_string()),
@@ -16,7 +18,7 @@ use crate::{error::LibError, pipeline_builder::Processor};
 ///
 /// let input = vec!["labor", "aluminum"];
 ///
-/// let output = spelling_folder.process(input);
+/// let output = spelling_mapper.process(input);
 ///
 /// assert_eq!(output, vec!["labour", "aluminium"]);
 /// ```
