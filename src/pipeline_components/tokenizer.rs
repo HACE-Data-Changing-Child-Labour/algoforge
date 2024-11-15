@@ -30,7 +30,7 @@ mod tests {
     #[test]
     fn test_basic_tokenization() {
         let tokenizer = Tokenizer;
-        let input = String::from("hello world");
+        let input = Cow::Borrowed("hello world");
         let result = tokenizer.process(input);
 
         assert_eq!(
@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn test_empty_string() {
         let tokenizer = Tokenizer;
-        let input = String::new();
+        let input = Cow::Borrowed("");
         let result = tokenizer.process(input);
 
         assert!(result.is_empty());
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn test_multiple_whitespace() {
         let tokenizer = Tokenizer;
-        let input = String::from("hello   world\t\ttest\n\ntoken");
+        let input = Cow::Borrowed("hello   world\t\ttest\n\ntoken");
         let result = tokenizer.process(input);
 
         assert_eq!(
@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn test_whitespace_only() {
         let tokenizer = Tokenizer;
-        let input = String::from("   \t\n   ");
+        let input = Cow::Borrowed("   \t\n   ");
         let result = tokenizer.process(input);
 
         assert!(result.is_empty());
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn test_unicode_content() {
         let tokenizer = Tokenizer;
-        let input = String::from("Hello 世界 नमस्ते");
+        let input = Cow::Borrowed("Hello 世界 नमस्ते");
         let result = tokenizer.process(input);
 
         assert_eq!(
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn test_ownership_transfer() {
         let tokenizer = Tokenizer;
-        let original = String::from("test string");
+        let original = Cow::Borrowed("test string");
         let result = tokenizer.process(original.clone());
 
         // Verify we get owned strings
