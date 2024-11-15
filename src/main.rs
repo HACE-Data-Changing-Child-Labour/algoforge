@@ -1,14 +1,12 @@
 mod error;
 #[macro_use]
 mod pipeline_builder;
-mod algos;
 mod pipeline_components;
 
 use std::path::PathBuf;
 
 use crate::pipeline_builder::{Chainable, Processor};
-use algos::ToLowerCase;
-use pipeline_components::{Lemmatizer, SpellingMapper, Tokenizer};
+use pipeline_components::{Lemmatizer, SpellingMapper, ToLowerCase, Tokenizer};
 use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     ThreadPoolBuilder,
@@ -21,13 +19,13 @@ fn main() {
         .unwrap();
 
     // All of these processors inherently modify strings
-    // therefore the advantages of using Cow over String are not 
-    // always available, but we still use them to make the pipelines 
+    // therefore the advantages of using Cow over String are not
+    // always available, but we still use them to make the pipelines
     // more uniform, for later stages, where we can use borrowed strings
     // for fuzzy matching and other non-write operations
     // Using Cow::Owned is similarly performant as using Strings
     // (except the inexpensive branch check of Cow::Owned || Cow::Borrowed)
-    
+
     let tokenizer = Tokenizer;
     let to_lower = ToLowerCase;
     let spelling_mapper = SpellingMapper::new(PathBuf::from("data/spelling_map.csv")).unwrap();
