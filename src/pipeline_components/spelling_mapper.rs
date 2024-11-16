@@ -92,136 +92,166 @@ impl Processor for SpellingMapper {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::fs::File;
-//     use std::io::Write;
-//     use tempfile::TempDir;
-//
-//     // Helper function to create a temporary CSV file with spelling mappings
-//     fn create_test_csv(content: &str) -> (TempDir, PathBuf) {
-//         let dir = TempDir::new().expect("Failed to create temp dir");
-//         let file_path = dir.path().join("spelling_map.csv");
-//         let mut file = File::create(&file_path).expect("Failed to create temp file");
-//         write!(file, "{}", content).expect("Failed to write test data");
-//         file.flush().expect("Failed to flush file");
-//         (dir, file_path)
-//     }
-//
-//     #[test]
-//     fn test_invalid_csv_path() {
-//         let result = SpellingMapper::new(PathBuf::from("nonexistent.csv"));
-//         assert!(matches!(result, Err(LibError::IO(_))));
-//     }
-//
-//     #[test]
-//     fn debug_csv_content() {
-//         // Let's see exactly what's being written and read
-//         let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         // Read the file contents to verify what was written
-//         let file_content = std::fs::read_to_string(&path).unwrap();
-//         println!("File content:\n{}", file_content);
-//
-//         let mapper = SpellingMapper::new(path).unwrap();
-//         println!("Mapping contents: {:?}", mapper.spelling_map);
-//
-//         // Test specific mappings
-//         assert_eq!(
-//             mapper.spelling_map.get("color"),
-//             Some(&"colour".to_string())
-//         );
-//         assert_eq!(
-//             mapper.spelling_map.get("flavor"),
-//             Some(&"flavour".to_string())
-//         );
-//     }
-//
-//     #[test]
-//     fn test_basic_mapping() {
-//         let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let mapper = SpellingMapper::new(path).unwrap();
-//         let input = vec![Cow::Borrowed("color"), Cow::Borrowed("flavor")];
-//
-//         let result = mapper.process(input);
-//         assert_eq!(
-//             result,
-//             vec![
-//                 Cow::Owned::<String>("colour".to_string()),
-//                 Cow::Owned("flavour".to_string()),
-//             ]
-//         );
-//     }
-//
-//     #[test]
-//     fn test_cow_variant_preservation() {
-//         let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let mapper = SpellingMapper::new(path).unwrap();
-//         let input = vec![
-//             Cow::Borrowed("color"),              // Should be mapped and owned
-//             Cow::Borrowed("flavor"),             // Should be mapped and owned
-//             Cow::Borrowed("unchanged"),          // Should stay borrowed
-//             Cow::Owned("color".to_string()),     // Should be mapped and owned
-//             Cow::Owned("unchanged".to_string()), // Should stay owned
-//         ];
-//
-//         let result = mapper.process(input);
-//
-//         assert!(matches!(&result[0], Cow::Owned(s) if s == "colour"));
-//         assert!(matches!(&result[1], Cow::Owned(s) if s == "flavour"));
-//         assert!(matches!(&result[2], Cow::Borrowed(s) if *s == "unchanged"));
-//         assert!(matches!(&result[3], Cow::Owned(s) if s == "colour"));
-//         assert!(matches!(&result[4], Cow::Owned(s) if s == "unchanged"));
-//     }
-//
-//     #[test]
-//     fn test_empty_input() {
-//         let csv_content = "target,alternative_spelling\r\ncolour,color\r\n";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let mapper = SpellingMapper::new(path).unwrap();
-//         let input: Vec<Cow<str>> = vec![];
-//
-//         let result = mapper.process(input);
-//         assert!(result.is_empty());
-//     }
-//
-//     #[test]
-//     fn test_no_mappings_needed() {
-//         let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let mapper = SpellingMapper::new(path).unwrap();
-//         let input = vec![Cow::Borrowed("unchanged1"), Cow::Borrowed("unchanged2")];
-//
-//         let result = mapper.process(input);
-//
-//         assert!(matches!(&result[0], Cow::Borrowed(s) if *s == "unchanged1"));
-//         assert!(matches!(&result[1], Cow::Borrowed(s) if *s == "unchanged2"));
-//     }
-//
-//     #[test]
-//     fn test_case_sensitivity() {
-//         let csv_content = "target,alternative_spelling\r\ncolour,color\r\n";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let mapper = SpellingMapper::new(path).unwrap();
-//         let input = vec![
-//             Cow::Borrowed("color"), // Should be mapped
-//             Cow::Borrowed("COLOR"), // Should stay unchanged and borrowed
-//             Cow::Borrowed("Color"), // Should stay unchanged and borrowed
-//         ];
-//
-//         let result = mapper.process(input);
-//
-//         assert!(matches!(&result[0], Cow::Owned(s) if s == "colour"));
-//         assert!(matches!(&result[1], Cow::Borrowed(s) if *s == "COLOR"));
-//         assert!(matches!(&result[2], Cow::Borrowed(s) if *s == "Color"));
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    // Helper function to create a temporary CSV file with spelling mappings
+    fn create_test_csv(content: &str) -> (TempDir, PathBuf) {
+        let dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = dir.path().join("spelling_map.csv");
+        let mut file = File::create(&file_path).expect("Failed to create temp file");
+        write!(file, "{}", content).expect("Failed to write test data");
+        file.flush().expect("Failed to flush file");
+        (dir, file_path)
+    }
+
+    #[test]
+    fn test_invalid_csv_path() {
+        let result = SpellingMapper::new(PathBuf::from("nonexistent.csv"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn debug_csv_content() {
+        // Let's see exactly what's being written and read
+        let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        // Read the file contents to verify what was written
+        let file_content = std::fs::read_to_string(&path).unwrap();
+        println!("File content:\n{}", file_content);
+
+        let mapper = SpellingMapper::new(path).unwrap();
+        println!("Mapping contents: {:?}", mapper.spelling_map);
+
+        // Test specific mappings
+        assert_eq!(
+            mapper.spelling_map.get("color"),
+            Some(&"colour".to_string())
+        );
+        assert_eq!(
+            mapper.spelling_map.get("flavor"),
+            Some(&"flavour".to_string())
+        );
+    }
+
+    #[test]
+    fn test_basic_mapping() {
+        let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let mapper = SpellingMapper::new(path).unwrap();
+        let input = vec![Cow::Borrowed("color"), Cow::Borrowed("flavor")];
+
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![
+                    Cow::Owned::<String>("colour".to_string()),
+                    Cow::Owned("flavour".to_string()),
+                ]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_cow_variant_preservation() {
+        let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let mapper = SpellingMapper::new(path).unwrap();
+        let input = vec![
+            Cow::Borrowed("color"),              // Should be mapped and owned
+            Cow::Borrowed("flavor"),             // Should be mapped and owned
+            Cow::Borrowed("unchanged"),          // Should stay borrowed
+            Cow::Owned("color".to_string()),     // Should be mapped and owned
+            Cow::Owned("unchanged".to_string()), // Should stay owned
+        ];
+
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(matches!(&output_vec[0], Cow::Owned(s) if s == "colour"));
+            assert!(matches!(&output_vec[1], Cow::Owned(s) if s == "flavour"));
+            assert!(matches!(&output_vec[2], Cow::Borrowed(s) if *s == "unchanged"));
+            assert!(matches!(&output_vec[3], Cow::Owned(s) if s == "colour"));
+            assert!(matches!(&output_vec[4], Cow::Owned(s) if s == "unchanged"));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_empty_input() {
+        let csv_content = "target,alternative_spelling\r\ncolour,color\r\n";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let mapper = SpellingMapper::new(path).unwrap();
+        let input: Vec<Cow<str>> = vec![];
+
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(output_vec.is_empty());
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_no_mappings_needed() {
+        let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let mapper = SpellingMapper::new(path).unwrap();
+        let input = vec![Cow::Borrowed("unchanged1"), Cow::Borrowed("unchanged2")];
+
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(matches!(&output_vec[0], Cow::Borrowed(s) if *s == "unchanged1"));
+            assert!(matches!(&output_vec[1], Cow::Borrowed(s) if *s == "unchanged2"));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_case_sensitivity() {
+        let csv_content = "target,alternative_spelling\r\ncolour,color\r\n";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let mapper = SpellingMapper::new(path).unwrap();
+        let input = vec![
+            Cow::Borrowed("color"), // Should be mapped
+            Cow::Borrowed("COLOR"), // Should stay unchanged and borrowed
+            Cow::Borrowed("Color"), // Should stay unchanged and borrowed
+        ];
+
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(matches!(&output_vec[0], Cow::Owned(s) if s == "colour"));
+            assert!(matches!(&output_vec[1], Cow::Borrowed(s) if *s == "COLOR"));
+            assert!(matches!(&output_vec[2], Cow::Borrowed(s) if *s == "Color"));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+}

@@ -40,27 +40,33 @@ impl Processor for ToLowerCase {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn test_basic_lowercase() {
-//         let processor = ToLowerCase;
-//         let input = vec![
-//             Cow::Borrowed("HELLO"),
-//             Cow::Borrowed("World"),
-//             Cow::Borrowed("Test123"),
-//         ];
-//
-//         let result = processor.process(input);
-//         assert_eq!(
-//             result,
-//             vec![
-//                 Cow::Owned::<String>("hello".to_string()),
-//                 Cow::Owned("world".to_string()),
-//                 Cow::Owned("test123".to_string()),
-//             ]
-//         );
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic_lowercase() {
+        let processor = ToLowerCase;
+        let input = vec![
+            Cow::Borrowed("HELLO"),
+            Cow::Borrowed("World"),
+            Cow::Borrowed("Test123"),
+        ];
+
+        let result = processor
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![
+                    Cow::Owned::<String>("hello".to_string()),
+                    Cow::Owned("world".to_string()),
+                    Cow::Owned("test123".to_string()),
+                ]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+}

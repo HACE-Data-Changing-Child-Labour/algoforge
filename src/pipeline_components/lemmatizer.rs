@@ -103,180 +103,222 @@ impl Processor for Lemmatizer {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::fs::File;
-//     use std::io::Write;
-//     use tempfile::TempDir;
-//
-//     fn create_test_csv(content: &str) -> (TempDir, PathBuf) {
-//         let dir = TempDir::new().expect("Failed to create temp dir");
-//         let file_path = dir.path().join("lemma_map.csv");
-//         let mut file = File::create(&file_path).expect("Failed to create temp file");
-//         write!(file, "{}", content).expect("Failed to write test data");
-//         file.flush().expect("Failed to flush file");
-//         (dir, file_path)
-//     }
-//
-//     #[test]
-//     fn test_basic_lemmatization() {
-//         let csv_content =
-//             "lemma,derivatives\nbe,\"is, was, are, were, been, being\"\nrun,\"runs, ran, running\"";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let lemmatizer = Lemmatizer::new(path).unwrap();
-//         let input = vec![
-//             Cow::Borrowed("is"),
-//             Cow::Borrowed("was"),
-//             Cow::Borrowed("be"), // already a lemma
-//             Cow::Borrowed("running"),
-//             Cow::Borrowed("unknown"), // not in map
-//         ];
-//
-//         let result = lemmatizer.process(input);
-//         assert_eq!(
-//             result,
-//             vec![
-//                 Cow::Owned("be".to_string()),
-//                 Cow::Owned("be".to_string()),
-//                 Cow::Borrowed("be"),
-//                 Cow::Owned("run".to_string()),
-//                 Cow::Borrowed("unknown"),
-//             ]
-//         );
-//     }
-//
-//     #[test]
-//     fn test_csv_parsing() {
-//         let csv_content = "lemma,derivatives\nbe,\"is, was, are, were, been, being\"";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let lemmatizer = Lemmatizer::new(path).unwrap();
-//
-//         // Check internal map structure
-//         let be_derivatives = lemmatizer.lemma_map.get("be").unwrap();
-//         assert!(be_derivatives.contains(&"is".to_string()));
-//         assert!(be_derivatives.contains(&"was".to_string()));
-//         assert!(be_derivatives.contains(&"are".to_string()));
-//         assert!(be_derivatives.contains(&"were".to_string()));
-//         assert!(be_derivatives.contains(&"been".to_string()));
-//         assert!(be_derivatives.contains(&"being".to_string()));
-//     }
-//
-//     #[test]
-//     fn test_multiple_forms() {
-//         let csv_content = "lemma,derivatives\ngo,\"goes, went, going, gone\"";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let lemmatizer = Lemmatizer::new(path).unwrap();
-//         let input = vec![
-//             Cow::Borrowed("goes"),
-//             Cow::Borrowed("went"),
-//             Cow::Borrowed("going"),
-//             Cow::Borrowed("gone"),
-//         ];
-//
-//         let result = lemmatizer.process(input);
-//         assert!(result.iter().all(|cow| match cow {
-//             Cow::Owned(s) => s == "go",
-//             _ => false,
-//         }));
-//     }
-//
-//     #[test]
-//     fn test_cow_variant_preservation() {
-//         let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let lemmatizer = Lemmatizer::new(path).unwrap();
-//         let input = vec![
-//             Cow::Borrowed("be"),               // lemma - should stay borrowed
-//             Cow::Owned("unknown".to_string()), // not in map - should stay owned
-//             Cow::Borrowed("is"),               // derivative - should become owned
-//         ];
-//
-//         let result = lemmatizer.process(input);
-//
-//         assert!(matches!(&result[0], Cow::Borrowed(s) if *s == "be"));
-//         assert!(matches!(&result[1], Cow::Owned(s) if s == "unknown"));
-//         assert!(matches!(&result[2], Cow::Owned(s) if s == "be"));
-//     }
-//
-//     #[test]
-//     fn test_empty_input() {
-//         let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let lemmatizer = Lemmatizer::new(path).unwrap();
-//         let input: Vec<Cow<str>> = vec![];
-//
-//         let result = lemmatizer.process(input);
-//         assert!(result.is_empty());
-//     }
-//
-//     #[test]
-//     fn test_case_sensitivity() {
-//         let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let lemmatizer = Lemmatizer::new(path).unwrap();
-//         let input = vec![
-//             Cow::Borrowed("IS"), // Different case - should not be lemmatized
-//             Cow::Borrowed("is"), // Correct case - should be lemmatized
-//         ];
-//
-//         let result = lemmatizer.process(input);
-//         assert_eq!(
-//             result,
-//             vec![Cow::Borrowed("IS"), Cow::Owned("be".to_string()),]
-//         );
-//     }
-//
-//     #[test]
-//     fn test_whitespace_handling() {
-//         let csv_content = "lemma,derivatives\nbe,\"is,was, are ,were, been , being\"";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let lemmatizer = Lemmatizer::new(path).unwrap();
-//         let input = vec![
-//             Cow::Borrowed("is"),
-//             Cow::Borrowed("was"),
-//             Cow::Borrowed("are"),
-//             Cow::Borrowed("were"),
-//             Cow::Borrowed("been"),
-//             Cow::Borrowed("being"),
-//         ];
-//
-//         // All should be mapped to "be" regardless of whitespace in CSV
-//         let result = lemmatizer.process(input);
-//         assert!(result.iter().all(|cow| match cow {
-//             Cow::Owned(s) => s == "be",
-//             _ => false,
-//         }));
-//     }
-//
-//     #[test]
-//     fn test_invalid_csv_path() {
-//         let result = Lemmatizer::new(PathBuf::from("nonexistent.csv"));
-//         assert!(matches!(result, Err(LibError::IO(_))));
-//     }
-//
-//     #[test]
-//     fn test_mixed_input_types() {
-//         let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
-//         let (_dir, path) = create_test_csv(csv_content);
-//
-//         let lemmatizer = Lemmatizer::new(path).unwrap();
-//         let input = vec![Cow::Borrowed("is"), Cow::Owned("was".to_string())];
-//
-//         let result = lemmatizer.process(input);
-//         assert_eq!(
-//             result,
-//             vec![
-//                 Cow::Owned::<String>("be".to_string()),
-//                 Cow::Owned("be".to_string()),
-//             ]
-//         );
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    fn create_test_csv(content: &str) -> (TempDir, PathBuf) {
+        let dir = TempDir::new().expect("Failed to create temp dir");
+        let file_path = dir.path().join("lemma_map.csv");
+        let mut file = File::create(&file_path).expect("Failed to create temp file");
+        write!(file, "{}", content).expect("Failed to write test data");
+        file.flush().expect("Failed to flush file");
+        (dir, file_path)
+    }
+
+    #[test]
+    fn test_basic_lemmatization() {
+        let csv_content =
+            "lemma,derivatives\nbe,\"is, was, are, were, been, being\"\nrun,\"runs, ran, running\"";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let lemmatizer = Lemmatizer::new(path).unwrap();
+        let input = vec![
+            Cow::Borrowed("is"),
+            Cow::Borrowed("was"),
+            Cow::Borrowed("be"), // already a lemma
+            Cow::Borrowed("running"),
+            Cow::Borrowed("unknown"), // not in map
+        ];
+
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![
+                    Cow::Owned("be".to_string()),
+                    Cow::Owned("be".to_string()),
+                    Cow::Borrowed("be"),
+                    Cow::Owned("run".to_string()),
+                    Cow::Borrowed("unknown"),
+                ]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_csv_parsing() {
+        let csv_content = "lemma,derivatives\nbe,\"is, was, are, were, been, being\"";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let lemmatizer = Lemmatizer::new(path).unwrap();
+
+        // Check internal map structure
+        let be_derivatives = lemmatizer.lemma_map.get("be").unwrap();
+        assert!(be_derivatives.contains(&"is".to_string()));
+        assert!(be_derivatives.contains(&"was".to_string()));
+        assert!(be_derivatives.contains(&"are".to_string()));
+        assert!(be_derivatives.contains(&"were".to_string()));
+        assert!(be_derivatives.contains(&"been".to_string()));
+        assert!(be_derivatives.contains(&"being".to_string()));
+    }
+
+    #[test]
+    fn test_multiple_forms() {
+        let csv_content = "lemma,derivatives\ngo,\"goes, went, going, gone\"";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let lemmatizer = Lemmatizer::new(path).unwrap();
+        let input = vec![
+            Cow::Borrowed("goes"),
+            Cow::Borrowed("went"),
+            Cow::Borrowed("going"),
+            Cow::Borrowed("gone"),
+        ];
+
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(output_vec.iter().all(|cow| match cow {
+                Cow::Owned(s) => s == "go",
+                _ => false,
+            }));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_cow_variant_preservation() {
+        let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let lemmatizer = Lemmatizer::new(path).unwrap();
+        let input = vec![
+            Cow::Borrowed("be"),               // lemma - should stay borrowed
+            Cow::Owned("unknown".to_string()), // not in map - should stay owned
+            Cow::Borrowed("is"),               // derivative - should become owned
+        ];
+
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(matches!(&output_vec[0], Cow::Borrowed(s) if *s == "be"));
+            assert!(matches!(&output_vec[1], Cow::Owned(s) if s == "unknown"));
+            assert!(matches!(&output_vec[2], Cow::Owned(s) if s == "be"));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_empty_input() {
+        let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let lemmatizer = Lemmatizer::new(path).unwrap();
+        let input: Vec<Cow<str>> = vec![];
+
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(output_vec.is_empty());
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_case_sensitivity() {
+        let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let lemmatizer = Lemmatizer::new(path).unwrap();
+        let input = vec![
+            Cow::Borrowed("IS"), // Different case - should not be lemmatized
+            Cow::Borrowed("is"), // Correct case - should be lemmatized
+        ];
+
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![Cow::Borrowed("IS"), Cow::Owned("be".to_string()),]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_whitespace_handling() {
+        let csv_content = "lemma,derivatives\nbe,\"is,was, are ,were, been , being\"";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let lemmatizer = Lemmatizer::new(path).unwrap();
+        let input = vec![
+            Cow::Borrowed("is"),
+            Cow::Borrowed("was"),
+            Cow::Borrowed("are"),
+            Cow::Borrowed("were"),
+            Cow::Borrowed("been"),
+            Cow::Borrowed("being"),
+        ];
+
+        // All should be mapped to "be" regardless of whitespace in CSV
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(output_vec.iter().all(|cow| match cow {
+                Cow::Owned(s) => s == "be",
+                _ => false,
+            }));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_invalid_csv_path() {
+        let result = Lemmatizer::new(PathBuf::from("nonexistent.csv"));
+        assert!(result.is_err()); // TODO: Check for specific error
+    }
+
+    #[test]
+    fn test_mixed_input_types() {
+        let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
+        let (_dir, path) = create_test_csv(csv_content);
+
+        let lemmatizer = Lemmatizer::new(path).unwrap();
+        let input = vec![Cow::Borrowed("is"), Cow::Owned("was".to_string())];
+
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![
+                    Cow::Owned::<String>("be".to_string()),
+                    Cow::Owned("be".to_string()),
+                ]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
+    }
+}
