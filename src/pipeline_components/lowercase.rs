@@ -1,17 +1,42 @@
 use std::borrow::Cow;
 
-use crate::pipeline_builder::Processor;
+use pyo3::{pyclass, pymethods};
 
+use crate::{
+    error::LibError,
+    pipeline_builder::{Data, Processor},
+};
+
+#[pyclass]
 pub struct ToLowerCase;
 
-impl<'a> Processor<Vec<Cow<'a, str>>> for ToLowerCase {
-    type Output = Vec<Cow<'a, str>>;
+#[pymethods]
+impl ToLowerCase {
+    #[new]
+    pub fn new() -> Self {
+        Self
+    }
+}
 
-    fn process(&self, input: Vec<Cow<'a, str>>) -> Self::Output {
-        input
-            .into_iter()
-            .map(|s| Cow::Owned(s.to_lowercase()))
-            .collect()
+impl Default for ToLowerCase {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Processor for ToLowerCase {
+    fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError> {
+        match input {
+            Data::VecCowStr(v) => Ok(Data::VecCowStr(
+                v.into_iter()
+                    .map(|s| Cow::Owned(s.to_lowercase()))
+                    .collect(),
+            )),
+            _ => Err(LibError::InvalidInput(
+                "ToLowerCase".to_string(),
+                "Data::VecCowStr".to_string(),
+            )),
+        }
     }
 }
 
@@ -28,14 +53,20 @@ mod tests {
             Cow::Borrowed("Test123"),
         ];
 
-        let result = processor.process(input);
-        assert_eq!(
-            result,
-            vec![
-                Cow::Owned::<String>("hello".to_string()),
-                Cow::Owned("world".to_string()),
-                Cow::Owned("test123".to_string()),
-            ]
-        );
+        let result = processor
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![
+                    Cow::Owned::<String>("hello".to_string()),
+                    Cow::Owned("world".to_string()),
+                    Cow::Owned("test123".to_string()),
+                ]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 }

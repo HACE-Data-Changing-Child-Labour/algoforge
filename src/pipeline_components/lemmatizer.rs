@@ -1,22 +1,46 @@
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 
-use crate::{error::LibError, pipeline_builder::Processor};
+use pyo3::{exceptions::PyRuntimeError, pyclass, pymethods, PyErr};
+
+use crate::{
+    error::LibError,
+    pipeline_builder::{Data, Processor},
+};
 
 /// Lemmatizer using:
 /// English Lemma Database (if default CSV is used)
 /// Compiled by Referencing British National Corpus
 /// ASSUMES USAGE OF BRITISH ENGLISH
 /// SOURCE: https://github.com/skywind3000/lemma.en
+#[pyclass]
 pub struct Lemmatizer {
     lemma_map: HashMap<String, Vec<String>>,
+    /// Having a derivative map for reverse lookup
+    /// takes this from O(n * m) to O(n)
+    derivative_map: HashMap<String, String>,
+}
+
+#[pymethods]
+impl Lemmatizer {
+    #[new]
+    pub fn new(lemma_map_path: PathBuf) -> Result<Self, pyo3::PyErr> {
+        let lemma_map = Self::load_map(lemma_map_path)
+            .map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
+
+        let mut derivative_map = HashMap::new();
+        for (lemma, derivatives) in &lemma_map {
+            for derivative in derivatives {
+                derivative_map.insert(derivative.clone(), lemma.clone());
+            }
+        }
+        Ok(Self {
+            lemma_map,
+            derivative_map,
+        })
+    }
 }
 
 impl Lemmatizer {
-    pub fn new(lemma_map_path: PathBuf) -> Result<Self, LibError> {
-        let lemma_map = Self::load_map(lemma_map_path)?;
-        Ok(Self { lemma_map })
-    }
-
     fn load_map(path: PathBuf) -> Result<HashMap<String, Vec<String>>, LibError> {
         let mut reader = csv::Reader::from_path(path)
             .map_err(|e| LibError::IO(format!("Failed to read spelling map: {}", e)))?;
@@ -53,29 +77,29 @@ impl Lemmatizer {
     }
 }
 
-impl<'a> Processor<Vec<Cow<'a, str>>> for Lemmatizer {
-    type Output = Vec<Cow<'a, str>>;
-
-    fn process(&self, input: Vec<Cow<'a, str>>) -> Self::Output {
-        input
-            .into_iter()
-            .map(|word| {
-                // Keep the original Cow if it's already a lemma
-                if self.lemma_map.contains_key(word.as_ref()) {
-                    word
-                } else {
-                    // Check derivatives
-                    for (lemma, derivatives) in &self.lemma_map {
-                        if derivatives.iter().any(|d| d == word.as_ref()) {
-                            // If found, take the lemma and return it owned
-                            return Cow::Owned(lemma.clone());
+impl Processor for Lemmatizer {
+    fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError> {
+        match input {
+            Data::VecCowStr(v) => Ok(Data::VecCowStr(
+                v.into_iter()
+                    .map(|word| {
+                        // Keep the original Cow if it's already a lemma
+                        if self.lemma_map.contains_key(word.as_ref()) {
+                            word
+                        } else if self.derivative_map.contains_key(word.as_ref()) {
+                            Cow::Owned(self.derivative_map.get(word.as_ref()).unwrap().clone())
+                        } else {
+                            // If not found, keep the original
+                            word
                         }
-                    }
-                    // If not found, keep the original
-                    word
-                }
-            })
-            .collect()
+                    })
+                    .collect(),
+            )),
+            _ => Err(LibError::InvalidInput(
+                "Lemmatizer".to_string(),
+                "Data::VecCowStr".to_string(),
+            )),
+        }
     }
 }
 
@@ -110,17 +134,23 @@ mod tests {
             Cow::Borrowed("unknown"), // not in map
         ];
 
-        let result = lemmatizer.process(input);
-        assert_eq!(
-            result,
-            vec![
-                Cow::Owned("be".to_string()),
-                Cow::Owned("be".to_string()),
-                Cow::Borrowed("be"),
-                Cow::Owned("run".to_string()),
-                Cow::Borrowed("unknown"),
-            ]
-        );
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![
+                    Cow::Owned("be".to_string()),
+                    Cow::Owned("be".to_string()),
+                    Cow::Borrowed("be"),
+                    Cow::Owned("run".to_string()),
+                    Cow::Borrowed("unknown"),
+                ]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -153,11 +183,17 @@ mod tests {
             Cow::Borrowed("gone"),
         ];
 
-        let result = lemmatizer.process(input);
-        assert!(result.iter().all(|cow| match cow {
-            Cow::Owned(s) => s == "go",
-            _ => false,
-        }));
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(output_vec.iter().all(|cow| match cow {
+                Cow::Owned(s) => s == "go",
+                _ => false,
+            }));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -172,11 +208,17 @@ mod tests {
             Cow::Borrowed("is"),               // derivative - should become owned
         ];
 
-        let result = lemmatizer.process(input);
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
 
-        assert!(matches!(&result[0], Cow::Borrowed(s) if *s == "be"));
-        assert!(matches!(&result[1], Cow::Owned(s) if s == "unknown"));
-        assert!(matches!(&result[2], Cow::Owned(s) if s == "be"));
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(matches!(&output_vec[0], Cow::Borrowed(s) if *s == "be"));
+            assert!(matches!(&output_vec[1], Cow::Owned(s) if s == "unknown"));
+            assert!(matches!(&output_vec[2], Cow::Owned(s) if s == "be"));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -187,8 +229,14 @@ mod tests {
         let lemmatizer = Lemmatizer::new(path).unwrap();
         let input: Vec<Cow<str>> = vec![];
 
-        let result = lemmatizer.process(input);
-        assert!(result.is_empty());
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(output_vec.is_empty());
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -202,11 +250,17 @@ mod tests {
             Cow::Borrowed("is"), // Correct case - should be lemmatized
         ];
 
-        let result = lemmatizer.process(input);
-        assert_eq!(
-            result,
-            vec![Cow::Borrowed("IS"), Cow::Owned("be".to_string()),]
-        );
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![Cow::Borrowed("IS"), Cow::Owned("be".to_string()),]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -225,17 +279,23 @@ mod tests {
         ];
 
         // All should be mapped to "be" regardless of whitespace in CSV
-        let result = lemmatizer.process(input);
-        assert!(result.iter().all(|cow| match cow {
-            Cow::Owned(s) => s == "be",
-            _ => false,
-        }));
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(output_vec.iter().all(|cow| match cow {
+                Cow::Owned(s) => s == "be",
+                _ => false,
+            }));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
     fn test_invalid_csv_path() {
         let result = Lemmatizer::new(PathBuf::from("nonexistent.csv"));
-        assert!(matches!(result, Err(LibError::IO(_))));
+        assert!(result.is_err()); // TODO: Check for specific error
     }
 
     #[test]
@@ -246,13 +306,19 @@ mod tests {
         let lemmatizer = Lemmatizer::new(path).unwrap();
         let input = vec![Cow::Borrowed("is"), Cow::Owned("was".to_string())];
 
-        let result = lemmatizer.process(input);
-        assert_eq!(
-            result,
-            vec![
-                Cow::Owned::<String>("be".to_string()),
-                Cow::Owned("be".to_string()),
-            ]
-        );
+        let result = lemmatizer
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![
+                    Cow::Owned::<String>("be".to_string()),
+                    Cow::Owned("be".to_string()),
+                ]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 }

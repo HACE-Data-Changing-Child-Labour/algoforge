@@ -1,6 +1,11 @@
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 
-use crate::{error::LibError, pipeline_builder::Processor};
+use pyo3::{exceptions::PyRuntimeError, pyclass, pymethods, PyErr};
+
+use crate::{
+    error::LibError,
+    pipeline_builder::{Data, Processor},
+};
 
 /// Maps the spelling of a provided word
 /// to the target spelling provided as
@@ -22,16 +27,22 @@ use crate::{error::LibError, pipeline_builder::Processor};
 ///
 /// assert_eq!(output, vec!["labour", "aluminium"]);
 /// ```
+#[pyclass]
 pub struct SpellingMapper {
     spelling_map: HashMap<String, String>,
 }
 
+#[pymethods]
 impl SpellingMapper {
-    pub fn new(spelling_map_path: PathBuf) -> Result<Self, LibError> {
-        let spelling_map = Self::load_spelling_map(spelling_map_path)?;
+    #[new]
+    pub fn new(spelling_map_path: PathBuf) -> Result<Self, pyo3::PyErr> {
+        let spelling_map = Self::load_spelling_map(spelling_map_path)
+            .map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
         Ok(Self { spelling_map })
     }
+}
 
+impl SpellingMapper {
     fn load_spelling_map(path: PathBuf) -> Result<HashMap<String, String>, LibError> {
         let mut reader = csv::Reader::from_path(path)
             .map_err(|e| LibError::IO(format!("Failed to read spelling map: {}", e)))?;
@@ -62,17 +73,22 @@ impl SpellingMapper {
     }
 }
 
-impl<'a> Processor<Vec<Cow<'a, str>>> for SpellingMapper {
-    type Output = Vec<Cow<'a, str>>;
-
-    fn process(&self, input: Vec<Cow<'a, str>>) -> Self::Output {
-        input
-            .into_iter()
-            .map(|word| match self.spelling_map.get(&word.to_string()) {
-                Some(alternative_spelling) => Cow::Owned(alternative_spelling.to_string()),
-                None => word,
-            })
-            .collect()
+impl Processor for SpellingMapper {
+    fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError> {
+        match input {
+            Data::VecCowStr(v) => Ok(Data::VecCowStr(
+                v.into_iter()
+                    .map(|word| match self.spelling_map.get(&word.to_string()) {
+                        Some(alternative_spelling) => Cow::Owned(alternative_spelling.to_string()),
+                        None => word,
+                    })
+                    .collect(),
+            )),
+            _ => Err(LibError::InvalidInput(
+                "SpellingMapper".to_string(),
+                "Data::VecCowStr".to_string(),
+            )),
+        }
     }
 }
 
@@ -96,7 +112,7 @@ mod tests {
     #[test]
     fn test_invalid_csv_path() {
         let result = SpellingMapper::new(PathBuf::from("nonexistent.csv"));
-        assert!(matches!(result, Err(LibError::IO(_))));
+        assert!(result.is_err());
     }
 
     #[test]
@@ -131,14 +147,20 @@ mod tests {
         let mapper = SpellingMapper::new(path).unwrap();
         let input = vec![Cow::Borrowed("color"), Cow::Borrowed("flavor")];
 
-        let result = mapper.process(input);
-        assert_eq!(
-            result,
-            vec![
-                Cow::Owned::<String>("colour".to_string()),
-                Cow::Owned("flavour".to_string()),
-            ]
-        );
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert_eq!(
+                output_vec,
+                vec![
+                    Cow::Owned::<String>("colour".to_string()),
+                    Cow::Owned("flavour".to_string()),
+                ]
+            );
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -155,13 +177,19 @@ mod tests {
             Cow::Owned("unchanged".to_string()), // Should stay owned
         ];
 
-        let result = mapper.process(input);
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
 
-        assert!(matches!(&result[0], Cow::Owned(s) if s == "colour"));
-        assert!(matches!(&result[1], Cow::Owned(s) if s == "flavour"));
-        assert!(matches!(&result[2], Cow::Borrowed(s) if *s == "unchanged"));
-        assert!(matches!(&result[3], Cow::Owned(s) if s == "colour"));
-        assert!(matches!(&result[4], Cow::Owned(s) if s == "unchanged"));
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(matches!(&output_vec[0], Cow::Owned(s) if s == "colour"));
+            assert!(matches!(&output_vec[1], Cow::Owned(s) if s == "flavour"));
+            assert!(matches!(&output_vec[2], Cow::Borrowed(s) if *s == "unchanged"));
+            assert!(matches!(&output_vec[3], Cow::Owned(s) if s == "colour"));
+            assert!(matches!(&output_vec[4], Cow::Owned(s) if s == "unchanged"));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -172,8 +200,14 @@ mod tests {
         let mapper = SpellingMapper::new(path).unwrap();
         let input: Vec<Cow<str>> = vec![];
 
-        let result = mapper.process(input);
-        assert!(result.is_empty());
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(output_vec.is_empty());
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -184,10 +218,16 @@ mod tests {
         let mapper = SpellingMapper::new(path).unwrap();
         let input = vec![Cow::Borrowed("unchanged1"), Cow::Borrowed("unchanged2")];
 
-        let result = mapper.process(input);
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
 
-        assert!(matches!(&result[0], Cow::Borrowed(s) if *s == "unchanged1"));
-        assert!(matches!(&result[1], Cow::Borrowed(s) if *s == "unchanged2"));
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(matches!(&output_vec[0], Cow::Borrowed(s) if *s == "unchanged1"));
+            assert!(matches!(&output_vec[1], Cow::Borrowed(s) if *s == "unchanged2"));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 
     #[test]
@@ -202,10 +242,16 @@ mod tests {
             Cow::Borrowed("Color"), // Should stay unchanged and borrowed
         ];
 
-        let result = mapper.process(input);
+        let result = mapper
+            .process(Data::VecCowStr(input))
+            .expect("Failed to process input");
 
-        assert!(matches!(&result[0], Cow::Owned(s) if s == "colour"));
-        assert!(matches!(&result[1], Cow::Borrowed(s) if *s == "COLOR"));
-        assert!(matches!(&result[2], Cow::Borrowed(s) if *s == "Color"));
+        if let Data::VecCowStr(output_vec) = result {
+            assert!(matches!(&output_vec[0], Cow::Owned(s) if s == "colour"));
+            assert!(matches!(&output_vec[1], Cow::Borrowed(s) if *s == "COLOR"));
+            assert!(matches!(&output_vec[2], Cow::Borrowed(s) if *s == "Color"));
+        } else {
+            panic!("Expected Data::VecCowStr");
+        }
     }
 }

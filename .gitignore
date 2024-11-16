@@ -14,3 +14,5 @@ devenv.local.nix
 /target
 context.txt
 gen.py
+python/algoforge/__pycache__
+python/algoforge/algoforge.cpython-312-x86_64-linux-gnu.so
