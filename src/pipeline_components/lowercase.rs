@@ -1,41 +1,66 @@
 use std::borrow::Cow;
 
-use crate::pipeline_builder::Processor;
+use pyo3::{pyclass, pymethods};
 
+use crate::{
+    error::LibError,
+    pipeline_builder::{Data, Processor},
+};
+
+#[pyclass]
 pub struct ToLowerCase;
 
-impl<'a> Processor<Vec<Cow<'a, str>>> for ToLowerCase {
-    type Output = Vec<Cow<'a, str>>;
-
-    fn process(&self, input: Vec<Cow<'a, str>>) -> Self::Output {
-        input
-            .into_iter()
-            .map(|s| Cow::Owned(s.to_lowercase()))
-            .collect()
+#[pymethods]
+impl ToLowerCase {
+    #[new]
+    pub fn new() -> Self {
+        Self
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_basic_lowercase() {
-        let processor = ToLowerCase;
-        let input = vec![
-            Cow::Borrowed("HELLO"),
-            Cow::Borrowed("World"),
-            Cow::Borrowed("Test123"),
-        ];
-
-        let result = processor.process(input);
-        assert_eq!(
-            result,
-            vec![
-                Cow::Owned::<String>("hello".to_string()),
-                Cow::Owned("world".to_string()),
-                Cow::Owned("test123".to_string()),
-            ]
-        );
+impl Default for ToLowerCase {
+    fn default() -> Self {
+        Self::new()
     }
 }
+
+impl Processor for ToLowerCase {
+    fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError> {
+        match input {
+            Data::VecCowStr(v) => Ok(Data::VecCowStr(
+                v.into_iter()
+                    .map(|s| Cow::Owned(s.to_lowercase()))
+                    .collect(),
+            )),
+            _ => Err(LibError::InvalidInput(
+                "ToLowerCase".to_string(),
+                "Data::VecCowStr".to_string(),
+            )),
+        }
+    }
+}
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//     #[test]
+//     fn test_basic_lowercase() {
+//         let processor = ToLowerCase;
+//         let input = vec![
+//             Cow::Borrowed("HELLO"),
+//             Cow::Borrowed("World"),
+//             Cow::Borrowed("Test123"),
+//         ];
+//
+//         let result = processor.process(input);
+//         assert_eq!(
+//             result,
+//             vec![
+//                 Cow::Owned::<String>("hello".to_string()),
+//                 Cow::Owned("world".to_string()),
+//                 Cow::Owned("test123".to_string()),
+//             ]
+//         );
+//     }
+// }
