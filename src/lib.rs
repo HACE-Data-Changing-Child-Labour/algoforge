@@ -30,33 +30,29 @@ impl PyPipeline {
         }
     }
 
-    pub fn build_pipeline(&mut self, processors: Vec<PyObject>) -> PyResult<()> {
+    pub fn build_pipeline(&mut self, py: Python, processors: Vec<PyObject>) -> PyResult<()> {
         let mut pipeline = Pipeline::new();
         pipeline.add_processor(PreProcessor);
 
         for processor_obj in processors {
-            Python::with_gil(|py| {
-                if processor_obj.extract::<PyRef<ToLowerCase>>(py).is_ok() {
-                    pipeline.add_processor(ToLowerCase);
-                } else if processor_obj.extract::<PyRef<Tokenizer>>(py).is_ok() {
-                    pipeline.add_processor(Tokenizer);
-                } else if processor_obj.extract::<PyRef<SpellingMapper>>(py).is_ok() {
-                    pipeline.add_processor(
-                        SpellingMapper::new(PathBuf::from("data/spelling_map.csv")).unwrap(),
-                    );
-                } else if processor_obj.extract::<PyRef<Lemmatizer>>(py).is_ok() {
-                    pipeline.add_processor(
-                        Lemmatizer::new(PathBuf::from("data/lemma_map.csv")).unwrap(),
-                    );
-                } else if processor_obj.extract::<PyRef<PorterStemmer>>(py).is_ok() {
-                    pipeline.add_processor(PorterStemmer);
-                } else {
-                    return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                        "Invalid processor type".to_string(),
-                    ));
-                }
-                Ok(())
-            })?;
+            if processor_obj.extract::<PyRef<ToLowerCase>>(py).is_ok() {
+                pipeline.add_processor(ToLowerCase);
+            } else if processor_obj.extract::<PyRef<Tokenizer>>(py).is_ok() {
+                pipeline.add_processor(Tokenizer);
+            } else if processor_obj.extract::<PyRef<SpellingMapper>>(py).is_ok() {
+                pipeline.add_processor(
+                    SpellingMapper::new(PathBuf::from("data/spelling_map.csv")).unwrap(),
+                );
+            } else if processor_obj.extract::<PyRef<Lemmatizer>>(py).is_ok() {
+                pipeline
+                    .add_processor(Lemmatizer::new(PathBuf::from("data/lemma_map.csv")).unwrap());
+            } else if processor_obj.extract::<PyRef<PorterStemmer>>(py).is_ok() {
+                pipeline.add_processor(PorterStemmer);
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Invalid processor type".to_string(),
+                ));
+            }
         }
 
         pipeline.add_processor(PostProcessor);
