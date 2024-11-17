@@ -28,6 +28,7 @@ use crate::{
 /// assert_eq!(output, vec!["labour", "aluminium"]);
 /// ```
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct SpellingMapper {
     spelling_map: HashMap<String, String>,
 }
@@ -35,8 +36,14 @@ pub struct SpellingMapper {
 #[pymethods]
 impl SpellingMapper {
     #[new]
-    pub fn new(spelling_map_path: PathBuf) -> Result<Self, pyo3::PyErr> {
-        let spelling_map = Self::load_spelling_map(spelling_map_path)
+    #[pyo3(signature = (spelling_map_path = None))]
+    pub fn new(spelling_map_path: Option<String>) -> Result<Self, pyo3::PyErr> {
+        let dictionary_path = match spelling_map_path {
+            Some(path) => PathBuf::from(path),
+            None => PathBuf::from("data/spelling_map.csv"),
+        };
+
+        let spelling_map = Self::load_spelling_map(dictionary_path)
             .map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
         Ok(Self { spelling_map })
     }
@@ -100,9 +107,13 @@ mod tests {
     use tempfile::TempDir;
 
     // Helper function to create a temporary CSV file with spelling mappings
-    fn create_test_csv(content: &str) -> (TempDir, PathBuf) {
+    fn create_test_csv(content: &str) -> (TempDir, String) {
         let dir = TempDir::new().expect("Failed to create temp dir");
-        let file_path = dir.path().join("spelling_map.csv");
+        let file_path = dir
+            .path()
+            .join("spelling_map.csv")
+            .to_string_lossy()
+            .to_string();
         let mut file = File::create(&file_path).expect("Failed to create temp file");
         write!(file, "{}", content).expect("Failed to write test data");
         file.flush().expect("Failed to flush file");
@@ -111,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_invalid_csv_path() {
-        let result = SpellingMapper::new(PathBuf::from("nonexistent.csv"));
+        let result = SpellingMapper::new(Some("nonexistent.csv".to_string()));
         assert!(result.is_err());
     }
 
@@ -125,7 +136,7 @@ mod tests {
         let file_content = std::fs::read_to_string(&path).unwrap();
         println!("File content:\n{}", file_content);
 
-        let mapper = SpellingMapper::new(path).unwrap();
+        let mapper = SpellingMapper::new(Some(path)).unwrap();
         println!("Mapping contents: {:?}", mapper.spelling_map);
 
         // Test specific mappings
@@ -144,7 +155,7 @@ mod tests {
         let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let mapper = SpellingMapper::new(path).unwrap();
+        let mapper = SpellingMapper::new(Some(path)).unwrap();
         let input = vec![Cow::Borrowed("color"), Cow::Borrowed("flavor")];
 
         let result = mapper
@@ -168,7 +179,7 @@ mod tests {
         let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let mapper = SpellingMapper::new(path).unwrap();
+        let mapper = SpellingMapper::new(Some(path)).unwrap();
         let input = vec![
             Cow::Borrowed("color"),              // Should be mapped and owned
             Cow::Borrowed("flavor"),             // Should be mapped and owned
@@ -197,7 +208,7 @@ mod tests {
         let csv_content = "target,alternative_spelling\r\ncolour,color\r\n";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let mapper = SpellingMapper::new(path).unwrap();
+        let mapper = SpellingMapper::new(Some(path)).unwrap();
         let input: Vec<Cow<str>> = vec![];
 
         let result = mapper
@@ -215,7 +226,7 @@ mod tests {
         let csv_content = "target,alternative_spelling\r\ncolour,color\r\nflavour,flavor\n";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let mapper = SpellingMapper::new(path).unwrap();
+        let mapper = SpellingMapper::new(Some(path)).unwrap();
         let input = vec![Cow::Borrowed("unchanged1"), Cow::Borrowed("unchanged2")];
 
         let result = mapper
@@ -235,7 +246,7 @@ mod tests {
         let csv_content = "target,alternative_spelling\r\ncolour,color\r\n";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let mapper = SpellingMapper::new(path).unwrap();
+        let mapper = SpellingMapper::new(Some(path.to_string())).unwrap();
         let input = vec![
             Cow::Borrowed("color"), // Should be mapped
             Cow::Borrowed("COLOR"), // Should stay unchanged and borrowed

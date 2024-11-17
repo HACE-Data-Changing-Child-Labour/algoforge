@@ -1,8 +1,9 @@
 mod error;
 mod pipeline_builder;
+#[macro_use]
 mod pipeline_components;
 
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use pipeline_builder::{Data, Pipeline};
 use pipeline_components::{
@@ -35,27 +36,23 @@ impl PyPipeline {
         pipeline.add_processor(PreProcessor);
 
         for processor_obj in processors {
-            if processor_obj.extract::<PyRef<ToLowerCase>>(py).is_ok() {
-                pipeline.add_processor(ToLowerCase);
-            } else if processor_obj.extract::<PyRef<Tokenizer>>(py).is_ok() {
-                pipeline.add_processor(Tokenizer);
-            } else if processor_obj.extract::<PyRef<SpellingMapper>>(py).is_ok() {
-                pipeline.add_processor(
-                    SpellingMapper::new(PathBuf::from("data/spelling_map.csv")).unwrap(),
-                );
-            } else if processor_obj.extract::<PyRef<Lemmatizer>>(py).is_ok() {
-                pipeline
-                    .add_processor(Lemmatizer::new(PathBuf::from("data/lemma_map.csv")).unwrap());
-            } else if processor_obj.extract::<PyRef<PorterStemmer>>(py).is_ok() {
-                pipeline.add_processor(PorterStemmer);
-            } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                    "Invalid processor type".to_string(),
-                ));
-            }
+            bind_processors!(
+                py,
+                &mut pipeline,
+                processor_obj,
+                [
+                    ToLowerCase,
+                    Tokenizer,
+                    SpellingMapper,
+                    Lemmatizer,
+                    PorterStemmer
+                ]
+            )?;
         }
 
         pipeline.add_processor(PostProcessor);
+
+        println!("Pipeline: {:?}", pipeline);
 
         self.pipeline = Arc::new(pipeline);
         Ok(())

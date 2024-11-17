@@ -1,3 +1,4 @@
+use core::fmt;
 use std::borrow::Cow;
 
 use crate::error::LibError;
@@ -9,8 +10,17 @@ pub enum Data<'a> {
     Json(serde_json::Value),
 }
 
-pub trait Processor: Send + Sync {
+pub trait Processor: Send + Sync + fmt::Debug {
     fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError>;
+    /// Only used for debugging purposes
+    /// don't override the default implementation
+    /// unless there's a good reason to
+    fn name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+            .split("::")
+            .last()
+            .unwrap_or("Unknown")
+    }
 }
 
 #[allow(dead_code)]
@@ -33,6 +43,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct ChainedProcessor<P1, P2> {
     pub first: P1,
     pub second: P2,
@@ -51,6 +62,25 @@ where
 
 pub struct Pipeline {
     processors: Vec<Box<dyn Processor>>,
+}
+
+/// Custom implementation of Debug for Pipeline
+/// to truncate the output to only the
+/// name of the processors
+impl fmt::Debug for Pipeline {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug_struct = f.debug_struct("Pipeline");
+
+        // Format each processor
+        let processors_debug: Vec<String> = self
+            .processors
+            .iter()
+            .map(|processor| processor.name().to_string())
+            .collect();
+
+        debug_struct.field("processors", &processors_debug);
+        debug_struct.finish()
+    }
 }
 
 impl Pipeline {

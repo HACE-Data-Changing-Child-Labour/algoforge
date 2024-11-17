@@ -3,6 +3,7 @@ use crate::{
     pipeline_builder::{Data, Processor},
 };
 
+#[derive(Debug)]
 pub struct PostProcessor;
 
 impl Processor for PostProcessor {

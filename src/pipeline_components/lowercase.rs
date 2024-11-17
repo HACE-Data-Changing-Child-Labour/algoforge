@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct ToLowerCase;
 
 #[pymethods]
@@ -32,9 +33,11 @@ impl Processor for ToLowerCase {
                     .map(|s| Cow::Owned(s.to_lowercase()))
                     .collect(),
             )),
-            _ => Err(LibError::InvalidInput(
+            Data::CowStr(s) => Ok(Data::CowStr(Cow::Owned(s.to_lowercase()))),
+            Data::OwnedStr(s) => Ok(Data::CowStr(Cow::Owned(s.to_lowercase()))),
+            Data::Json(_) => Err(LibError::InvalidInput(
                 "ToLowerCase".to_string(),
-                "Data::VecCowStr".to_string(),
+                "Data::Json".to_string(),
             )),
         }
     }

@@ -17,6 +17,7 @@ use crate::{
 /// Uses the `porter_stemmer` crate.
 /// https://crates.io/crates/porter_stemmer
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct PorterStemmer;
 
 #[pymethods]

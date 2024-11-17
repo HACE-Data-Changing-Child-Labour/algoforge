@@ -9,6 +9,7 @@ use crate::{
 /// but instead returns a vector of owned strings
 /// This is needed for correct python interop
 /// while saving a bunch of headaches
+#[derive(Debug)]
 pub struct PreProcessor;
 
 impl Processor for PreProcessor {

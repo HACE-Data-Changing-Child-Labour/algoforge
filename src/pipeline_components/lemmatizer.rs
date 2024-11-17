@@ -13,6 +13,7 @@ use crate::{
 /// ASSUMES USAGE OF BRITISH ENGLISH
 /// SOURCE: https://github.com/skywind3000/lemma.en
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct Lemmatizer {
     lemma_map: HashMap<String, Vec<String>>,
     /// Having a derivative map for reverse lookup

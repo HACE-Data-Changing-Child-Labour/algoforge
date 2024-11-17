@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let post_processor = PostProcessor;
     let tokenizer = Tokenizer;
     let to_lower = ToLowerCase;
-    let spelling_mapper = SpellingMapper::new(PathBuf::from("data/spelling_map.csv")).unwrap();
+    let spelling_mapper = SpellingMapper::new(None).unwrap();
     let lemmatizer = Lemmatizer::new(PathBuf::from("data/lemma_map.csv")).unwrap();
 
     let mut pipeline = Pipeline::new();

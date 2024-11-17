@@ -15,4 +15,8 @@
       '';
     };
   };
+
+  packages = with pkgs; [
+    cargo-expand
+  ];
 }
