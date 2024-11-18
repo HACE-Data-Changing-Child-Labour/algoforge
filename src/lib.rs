@@ -1,4 +1,5 @@
 mod error;
+mod model;
 mod pipeline_builder;
 #[macro_use]
 mod pipeline_components;
@@ -6,6 +7,7 @@ mod pipeline_components;
 use std::sync::Arc;
 
 use crossbeam::channel::Receiver;
+use model::{ProcessingRequest, ProcessingResult, ResultIterator};
 use pipeline_builder::{Data, Pipeline};
 use pipeline_components::{
     Lemmatizer, PorterStemmer, PostProcessor, PreProcessor, SpellingMapper, ToLowerCase, Tokenizer,
@@ -13,7 +15,7 @@ use pipeline_components::{
 use pyo3::{
     pyclass, pymethods, pymodule,
     types::{PyModule, PyModuleMethods},
-    Bound, PyAny, PyErr, PyObject, PyRef, PyRefMut, PyResult, Python,
+    Bound, PyAny, PyErr, PyObject, PyRef, PyResult, Python,
 };
 
 use pythonize::pythonize;
@@ -22,34 +24,6 @@ use rayon::{
     ThreadPoolBuilder,
 };
 use serde_json::Value;
-
-#[derive(Debug)]
-pub struct ProcessingResult {
-    pub result: Value,
-}
-
-#[pyclass]
-pub struct ResultIterator {
-    pub receiver: Receiver<ProcessingResult>,
-}
-
-#[pymethods]
-impl ResultIterator {
-    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
-        slf
-    }
-
-    fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<Vec<u8>>> {
-        match slf.receiver.recv() {
-            Ok(result) => Ok(Some(Vec::from(
-                serde_json::to_string(&result.result).unwrap().as_bytes(),
-            ))),
-            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                e.to_string(),
-            )),
-        }
-    }
-}
 
 #[pyclass]
 pub struct ProcPipeline {
@@ -89,35 +63,45 @@ impl ProcPipeline {
             );
         }
 
-        println!("Running: {:?}", pipeline);
-
         self.pipeline = Arc::new(pipeline);
         Ok(())
     }
 
-    pub fn process(&self, _py: Python, input: Vec<String>) -> PyResult<ResultIterator> {
-        let result = process_batch(self.pipeline.clone(), input);
-        Ok(ResultIterator { receiver: result })
+    pub fn process(
+        &self,
+        _py: Python,
+        requests: Vec<(String, String)>,
+    ) -> PyResult<ResultIterator> {
+        let requests = requests
+            .into_iter()
+            .map(|(id, input)| ProcessingRequest { id, input })
+            .collect();
+
+        let result_rx = process_batch(self.pipeline.clone(), requests);
+
+        Ok(ResultIterator {
+            receiver: result_rx,
+        })
     }
 }
 
-pub fn process_batch(pipeline: Arc<Pipeline>, input: Vec<String>) -> Receiver<ProcessingResult> {
+pub fn process_batch(
+    pipeline: Arc<Pipeline>,
+    requests: Vec<ProcessingRequest>,
+) -> Receiver<ProcessingResult> {
     let (result_tx, result_rx) = crossbeam::channel::bounded(100);
-    let input = input.clone();
+    let requests = requests.clone();
     let pipeline = pipeline.clone();
 
     std::thread::spawn(move || {
-        input
+        requests
             .into_par_iter()
-            .for_each_with(result_tx, move |result_tx, input| {
-                let result = pipeline.process(Data::OwnedStr(input.to_string())).unwrap();
+            .for_each_with(result_tx, move |result_tx, req| {
+                let result = pipeline.process(Data::OwnedStr(req.input.clone())).unwrap();
                 let result = match result {
                     Data::VecCowStr(v) => ProcessingResult {
-                        result: serde_json::to_value(v).unwrap_or_else(|_| {
-                            serde_json::json!({
-                                "error": "Failed to serialize input"
-                            })
-                        }),
+                        id: req.id,
+                        content: v.clone().iter().map(|s| s.as_bytes().to_vec()).collect(),
                     },
                     _ => panic!("Expected Data::Json"),
                 };
@@ -157,5 +141,6 @@ fn algoforge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Lemmatizer>()?;
     m.add_class::<ToLowerCase>()?;
     m.add_class::<PorterStemmer>()?;
+    m.add_class::<ProcessingRequest>()?;
     Ok(())
 }

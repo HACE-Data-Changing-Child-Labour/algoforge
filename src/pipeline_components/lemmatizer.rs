@@ -25,14 +25,8 @@ pub struct Lemmatizer {
 #[pymethods]
 impl Lemmatizer {
     #[new]
-    #[pyo3(signature = (lemma_map_path))]
-    pub fn new(lemma_map_path: Option<String>) -> Result<Self, pyo3::PyErr> {
-        let dictionary_path = match lemma_map_path {
-            Some(path) => PathBuf::from(path),
-            None => PathBuf::from("data/lemma_map.csv"),
-        };
-
-        let lemma_map = Self::load_map(dictionary_path)
+    pub fn new(lemma_map_path: String) -> Result<Self, pyo3::PyErr> {
+        let lemma_map = Self::load_map(PathBuf::from(lemma_map_path))
             .map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
 
         let mut derivative_map = HashMap::new();
@@ -132,7 +126,7 @@ mod tests {
             "lemma,derivatives\nbe,\"is, was, are, were, been, being\"\nrun,\"runs, ran, running\"";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let lemmatizer = Lemmatizer::new(Some(path)).unwrap();
+        let lemmatizer = Lemmatizer::new(path).unwrap();
         let input = vec![
             Cow::Borrowed("is"),
             Cow::Borrowed("was"),
@@ -165,7 +159,7 @@ mod tests {
         let csv_content = "lemma,derivatives\nbe,\"is, was, are, were, been, being\"";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let lemmatizer = Lemmatizer::new(Some(path)).unwrap();
+        let lemmatizer = Lemmatizer::new(path).unwrap();
 
         // Check internal map structure
         let be_derivatives = lemmatizer.lemma_map.get("be").unwrap();
@@ -182,7 +176,7 @@ mod tests {
         let csv_content = "lemma,derivatives\ngo,\"goes, went, going, gone\"";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let lemmatizer = Lemmatizer::new(Some(path)).unwrap();
+        let lemmatizer = Lemmatizer::new(path).unwrap();
         let input = vec![
             Cow::Borrowed("goes"),
             Cow::Borrowed("went"),
@@ -208,7 +202,7 @@ mod tests {
         let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let lemmatizer = Lemmatizer::new(Some(path)).unwrap();
+        let lemmatizer = Lemmatizer::new(path).unwrap();
         let input = vec![
             Cow::Borrowed("be"),               // lemma - should stay borrowed
             Cow::Owned("unknown".to_string()), // not in map - should stay owned
@@ -233,7 +227,7 @@ mod tests {
         let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let lemmatizer = Lemmatizer::new(Some(path)).unwrap();
+        let lemmatizer = Lemmatizer::new(path).unwrap();
         let input: Vec<Cow<str>> = vec![];
 
         let result = lemmatizer
@@ -251,7 +245,7 @@ mod tests {
         let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let lemmatizer = Lemmatizer::new(Some(path)).unwrap();
+        let lemmatizer = Lemmatizer::new(path).unwrap();
         let input = vec![
             Cow::Borrowed("IS"), // Different case - should not be lemmatized
             Cow::Borrowed("is"), // Correct case - should be lemmatized
@@ -275,7 +269,7 @@ mod tests {
         let csv_content = "lemma,derivatives\nbe,\"is,was, are ,were, been , being\"";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let lemmatizer = Lemmatizer::new(Some(path)).unwrap();
+        let lemmatizer = Lemmatizer::new(path).unwrap();
         let input = vec![
             Cow::Borrowed("is"),
             Cow::Borrowed("was"),
@@ -301,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_invalid_csv_path() {
-        let result = Lemmatizer::new(Some("nonexistent.csv".to_string()));
+        let result = Lemmatizer::new("nonexistent.csv".to_string());
         assert!(result.is_err()); // TODO: Check for specific error
     }
 
@@ -310,7 +304,7 @@ mod tests {
         let csv_content = "lemma,derivatives\nbe,\"is, was, are\"";
         let (_dir, path) = create_test_csv(csv_content);
 
-        let lemmatizer = Lemmatizer::new(Some(path)).unwrap();
+        let lemmatizer = Lemmatizer::new(path).unwrap();
         let input = vec![Cow::Borrowed("is"), Cow::Owned("was".to_string())];
 
         let result = lemmatizer
