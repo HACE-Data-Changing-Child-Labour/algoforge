@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// This is a pre-processor that does not modify the input
-/// but instead returns a vector of owned strings
+/// but instead returns an owned string
 /// This is needed for correct python interop
 /// while saving a bunch of headaches
 #[pyclass]
@@ -34,8 +34,7 @@ impl Processor for PreProcessor {
         match input {
             Data::OwnedStr(s) => Ok(Data::CowStr(Cow::Owned(s))),
             _ => Err(LibError::InvalidInput(
-                "PreProcessor".to_string(),
-                "Data::CowStr".to_string(),
+                "PreProcessor only accepts Data::OwnedStr as input".to_string(),
             ))?,
         }
     }

@@ -36,8 +36,7 @@ impl Processor for ToLowerCase {
             Data::CowStr(s) => Ok(Data::CowStr(Cow::Owned(s.to_lowercase()))),
             Data::OwnedStr(s) => Ok(Data::CowStr(Cow::Owned(s.to_lowercase()))),
             Data::Json(_) => Err(LibError::InvalidInput(
-                "ToLowerCase".to_string(),
-                "Data::Json".to_string(),
+                "ToLowerCase does not accept Data::Json as input".to_string(),
             )),
         }
     }

@@ -5,6 +5,7 @@ mod pipeline_components;
 
 use std::sync::Arc;
 
+use crossbeam::channel::Receiver;
 use pipeline_builder::{Data, Pipeline};
 use pipeline_components::{
     Lemmatizer, PorterStemmer, PostProcessor, PreProcessor, SpellingMapper, ToLowerCase, Tokenizer,
@@ -12,20 +13,57 @@ use pipeline_components::{
 use pyo3::{
     pyclass, pymethods, pymodule,
     types::{PyModule, PyModuleMethods},
-    Bound, PyAny, PyErr, PyObject, PyRef, PyResult, Python,
+    Bound, PyAny, PyErr, PyObject, PyRef, PyRefMut, PyResult, Python,
 };
+
 use pythonize::pythonize;
+use rayon::{
+    iter::{IntoParallelIterator, ParallelIterator},
+    ThreadPoolBuilder,
+};
 use serde_json::Value;
 
+#[derive(Debug)]
+pub struct ProcessingResult {
+    pub result: Value,
+}
+
 #[pyclass]
-pub struct PyPipeline {
+pub struct ResultIterator {
+    pub receiver: Receiver<ProcessingResult>,
+}
+
+#[pymethods]
+impl ResultIterator {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+
+    fn __next__(slf: PyRefMut<Self>) -> PyResult<Option<Vec<u8>>> {
+        match slf.receiver.recv() {
+            Ok(result) => Ok(Some(Vec::from(
+                serde_json::to_string(&result.result).unwrap().as_bytes(),
+            ))),
+            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                e.to_string(),
+            )),
+        }
+    }
+}
+
+#[pyclass]
+pub struct ProcPipeline {
     pipeline: Arc<Pipeline>,
 }
 
 #[pymethods]
-impl PyPipeline {
+impl ProcPipeline {
     #[new]
     pub fn new() -> Self {
+        ThreadPoolBuilder::new()
+            .num_threads(num_cpus::get())
+            .build_global()
+            .unwrap();
         Self {
             pipeline: Arc::new(Pipeline::new()),
         }
@@ -57,26 +95,41 @@ impl PyPipeline {
         Ok(())
     }
 
-    pub fn process(&self, py: Python, input: String) -> PyResult<PyObject> {
-        let result = self
-            .pipeline
-            .process(Data::OwnedStr(input))
-            .expect("Failed to process input");
-
-        let matched = match result {
-            Data::Json(j) => j,
-            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Expected Data::Json".to_string(),
-            ))?,
-        };
-
-        // Convert result to a Python object
-        let python_result = serde_to_py(py, &matched)?;
-        Ok(python_result.into())
+    pub fn process(&self, _py: Python, input: Vec<String>) -> PyResult<ResultIterator> {
+        let result = process_batch(self.pipeline.clone(), input);
+        Ok(ResultIterator { receiver: result })
     }
 }
 
-impl Default for PyPipeline {
+pub fn process_batch(pipeline: Arc<Pipeline>, input: Vec<String>) -> Receiver<ProcessingResult> {
+    let (result_tx, result_rx) = crossbeam::channel::bounded(100);
+    let input = input.clone();
+    let pipeline = pipeline.clone();
+
+    std::thread::spawn(move || {
+        input
+            .into_par_iter()
+            .for_each_with(result_tx, move |result_tx, input| {
+                let result = pipeline.process(Data::OwnedStr(input.to_string())).unwrap();
+                let result = match result {
+                    Data::VecCowStr(v) => ProcessingResult {
+                        result: serde_json::to_value(v).unwrap_or_else(|_| {
+                            serde_json::json!({
+                                "error": "Failed to serialize input"
+                            })
+                        }),
+                    },
+                    _ => panic!("Expected Data::Json"),
+                };
+
+                let _ = result_tx.send(result);
+            });
+    });
+
+    result_rx
+}
+
+impl Default for ProcPipeline {
     fn default() -> Self {
         Self::new()
     }
@@ -95,7 +148,8 @@ pub fn serde_to_py<'a>(py: Python<'a>, value: &'a Value) -> PyResult<Bound<'a, P
 
 #[pymodule]
 fn algoforge(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<PyPipeline>()?;
+    m.add_class::<ResultIterator>()?;
+    m.add_class::<ProcPipeline>()?;
     m.add_class::<PreProcessor>()?;
     m.add_class::<PostProcessor>()?;
     m.add_class::<Tokenizer>()?;

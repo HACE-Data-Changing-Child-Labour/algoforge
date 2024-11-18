@@ -12,21 +12,6 @@ use crate::{
 /// keys in the dictionary
 /// SOURCE: Breame project
 /// https://github.com/cdpierse/breame/blob/main/breame/data/spelling_constants.py
-/// * Example:
-/// ```
-/// let spelling_mapper = SpellingMapper {
-///     spelling_map: HashMap::from([
-///         ("labor".to_string(), "labour".to_string()),
-///         ("aluminum".to_string(), "aluminium".to_string()),
-///     ]),
-/// };
-///
-/// let input = vec!["labor", "aluminum"];
-///
-/// let output = spelling_mapper.process(input);
-///
-/// assert_eq!(output, vec!["labour", "aluminium"]);
-/// ```
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct SpellingMapper {
@@ -36,7 +21,7 @@ pub struct SpellingMapper {
 #[pymethods]
 impl SpellingMapper {
     #[new]
-    #[pyo3(signature = (spelling_map_path = None))]
+    #[pyo3(signature = (spelling_map_path))]
     pub fn new(spelling_map_path: Option<String>) -> Result<Self, pyo3::PyErr> {
         let dictionary_path = match spelling_map_path {
             Some(path) => PathBuf::from(path),
@@ -92,8 +77,7 @@ impl Processor for SpellingMapper {
                     .collect(),
             )),
             _ => Err(LibError::InvalidInput(
-                "SpellingMapper".to_string(),
-                "Data::VecCowStr".to_string(),
+                "SpellingMapper only accepts Data::VecCowStr as input".to_string(),
             )),
         }
     }

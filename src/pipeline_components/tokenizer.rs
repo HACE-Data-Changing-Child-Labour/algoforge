@@ -44,8 +44,7 @@ impl Processor for Tokenizer {
                     .collect(),
             )),
             _ => Err(LibError::InvalidInput(
-                "Tokenizer".to_string(),
-                "Data::CowStr".to_string(),
+                "Tokenizer only accepts Data::CowStr or Data::OwnedStr as input".to_string(),
             )),
         }
     }

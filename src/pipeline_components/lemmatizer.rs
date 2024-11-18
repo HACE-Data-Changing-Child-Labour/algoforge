@@ -8,6 +8,7 @@ use crate::{
 };
 
 /// Lemmatizer using:
+///
 /// English Lemma Database (if default CSV is used)
 /// Compiled by Referencing British National Corpus
 /// ASSUMES USAGE OF BRITISH ENGLISH
@@ -24,7 +25,7 @@ pub struct Lemmatizer {
 #[pymethods]
 impl Lemmatizer {
     #[new]
-    #[pyo3(signature = (lemma_map_path = None))]
+    #[pyo3(signature = (lemma_map_path))]
     pub fn new(lemma_map_path: Option<String>) -> Result<Self, pyo3::PyErr> {
         let dictionary_path = match lemma_map_path {
             Some(path) => PathBuf::from(path),
@@ -103,8 +104,7 @@ impl Processor for Lemmatizer {
                     .collect(),
             )),
             _ => Err(LibError::InvalidInput(
-                "Lemmatizer".to_string(),
-                "Data::VecCowStr".to_string(),
+                "Lemmatizer only accepts Data::VecCowStr as input".to_string(),
             )),
         }
     }
