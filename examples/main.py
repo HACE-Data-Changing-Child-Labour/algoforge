@@ -1,4 +1,6 @@
 from algoforge import (
+    PreProcessor,
+    PostProcessor,
     Pipeline,
     Tokenizer,
     SpellingMapper,
@@ -11,10 +13,12 @@ def main():
     pipeline = Pipeline()
     pipeline.build_pipeline(
         [
+            PreProcessor(),
             Tokenizer(),
             ToLowerCase(),
-            SpellingMapper("data/spelling_map.csv"),
-            Lemmatizer("data/lemma_map.csv"),
+            SpellingMapper("data/spelling_map.csv"),  # Uses default US/UK spelling mappings
+            Lemmatizer("data/lemma_map.csv"),         # Uses English lemma database
+            PostProcessor(),
         ]
     )
 

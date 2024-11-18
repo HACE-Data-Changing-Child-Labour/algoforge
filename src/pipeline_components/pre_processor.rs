@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use pyo3::{pyclass, pymethods};
+
 use crate::{
     error::LibError,
     pipeline_builder::{Data, Processor},
@@ -9,8 +11,23 @@ use crate::{
 /// but instead returns a vector of owned strings
 /// This is needed for correct python interop
 /// while saving a bunch of headaches
-#[derive(Debug)]
+#[pyclass]
+#[derive(Debug, Clone)]
 pub struct PreProcessor;
+
+#[pymethods]
+impl PreProcessor {
+    #[new]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for PreProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Processor for PreProcessor {
     fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError> {

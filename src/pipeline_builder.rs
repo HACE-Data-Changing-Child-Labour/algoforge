@@ -3,6 +3,7 @@ use std::borrow::Cow;
 
 use crate::error::LibError;
 
+#[derive(Debug)]
 pub enum Data<'a> {
     OwnedStr(String),
     CowStr(Cow<'a, str>),

@@ -33,26 +33,25 @@ impl PyPipeline {
 
     pub fn build_pipeline(&mut self, py: Python, processors: Vec<PyObject>) -> PyResult<()> {
         let mut pipeline = Pipeline::new();
-        pipeline.add_processor(PreProcessor);
 
         for processor_obj in processors {
-            bind_processors!(
+            build_dyn_proc_mappings!(
                 py,
                 &mut pipeline,
                 processor_obj,
                 [
+                    PreProcessor,
+                    PostProcessor,
                     ToLowerCase,
                     Tokenizer,
                     SpellingMapper,
                     Lemmatizer,
                     PorterStemmer
                 ]
-            )?;
+            );
         }
 
-        pipeline.add_processor(PostProcessor);
-
-        println!("Pipeline: {:?}", pipeline);
+        println!("Running: {:?}", pipeline);
 
         self.pipeline = Arc::new(pipeline);
         Ok(())
@@ -66,7 +65,9 @@ impl PyPipeline {
 
         let matched = match result {
             Data::Json(j) => j,
-            _ => panic!("Expected Data::Json"),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Expected Data::Json".to_string(),
+            ))?,
         };
 
         // Convert result to a Python object
@@ -95,6 +96,8 @@ pub fn serde_to_py<'a>(py: Python<'a>, value: &'a Value) -> PyResult<Bound<'a, P
 #[pymodule]
 fn algoforge(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyPipeline>()?;
+    m.add_class::<PreProcessor>()?;
+    m.add_class::<PostProcessor>()?;
     m.add_class::<Tokenizer>()?;
     m.add_class::<SpellingMapper>()?;
     m.add_class::<Lemmatizer>()?;

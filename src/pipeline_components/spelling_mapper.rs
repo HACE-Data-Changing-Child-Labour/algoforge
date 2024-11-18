@@ -109,15 +109,11 @@ mod tests {
     // Helper function to create a temporary CSV file with spelling mappings
     fn create_test_csv(content: &str) -> (TempDir, String) {
         let dir = TempDir::new().expect("Failed to create temp dir");
-        let file_path = dir
-            .path()
-            .join("spelling_map.csv")
-            .to_string_lossy()
-            .to_string();
+        let file_path = dir.path().join("spelling_map.csv");
         let mut file = File::create(&file_path).expect("Failed to create temp file");
         write!(file, "{}", content).expect("Failed to write test data");
         file.flush().expect("Failed to flush file");
-        (dir, file_path)
+        (dir, file_path.to_string_lossy().to_string())
     }
 
     #[test]
