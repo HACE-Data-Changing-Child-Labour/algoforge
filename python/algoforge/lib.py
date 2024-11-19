@@ -42,45 +42,46 @@ class ResultItem:
 
 
 class ProcPipeline:
-    def __init__(self):
-        """
-        Initialize `ProcPipeline` with a list of processors.
-        """
-        self._pipeline = RustProcPipeline()
+    """
+    A processing pipeline that leverages Rust for efficient text processing.
 
-    def build_pipeline(self, processors: list[Any]) -> None:
-        """
-        Builds a processing pipeline from a list of processors
+    Example:
+        >>> pipeline = ProcPipeline([
+        ...     PreProcessor(),
+        ...     Tokenizer(),
+        ...     ToLowerCase(),
+        ...     SpellingMapper("spelling.json"),
+        ...     Lemmatizer("lemmas.json"),
+        ...     PostProcessor()
+        ... ])
+        >>> results = pipeline.process(requests)
+    """
 
-        Processors must be chainable in the order they are added.
-        There are no guarantees about this, as rust handles the
-        construction of the pipeline via dynamic dispatch.
+    def __init__(self, processors: list[Any]):
+        """
+        Initialize the pipeline with processors.
 
         Args:
-            processors (list[Any]): A list of processors to add to the pipeline
-
-        Returns:
-            None
+            processors: List of processor instances to build the pipeline with
 
         Raises:
-            TypeError: If a processor is not chainable
+            TypeError: If processors aren't chainable in the given order
         """
+        self._pipeline = RustProcPipeline()
         inner_processors = [
-            processor._processor if hasattr(processor, "_processor") else processor
-            for processor in processors
+            getattr(processor, "_processor", processor) for processor in processors
         ]
-
         self._pipeline.build_pipeline(inner_processors)
 
     def process(self, requests: list[ProcessingRequest]) -> Iterator[ResultItem]:
         """
-        Processes the input using the pipeline
+        Process documents through the pipeline.
+
+        Args:
+            requests: List of ProcessingRequest objects
 
         Returns:
-            Iterator[Any]: An iterator that yields the results of the pipeline
-            Output format is that of the last processor in the pipeline
+            Iterator of ResultItems
         """
-
         req_tuples = [(req.id, req.input) for req in requests]
-
         return self._pipeline.process(req_tuples)

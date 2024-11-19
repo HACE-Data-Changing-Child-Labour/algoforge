@@ -17,8 +17,7 @@ def get_text_content():
 
 
 def main():
-    pipeline = ProcPipeline()
-    pipeline.build_pipeline(
+    pipeline = ProcPipeline(
         [
             PreProcessor(),
             Tokenizer(),
