@@ -8,11 +8,13 @@ use crate::{
 };
 
 /// Lemmatizer using:
+///
 /// English Lemma Database (if default CSV is used)
 /// Compiled by Referencing British National Corpus
 /// ASSUMES USAGE OF BRITISH ENGLISH
 /// SOURCE: https://github.com/skywind3000/lemma.en
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct Lemmatizer {
     lemma_map: HashMap<String, Vec<String>>,
     /// Having a derivative map for reverse lookup
@@ -23,8 +25,8 @@ pub struct Lemmatizer {
 #[pymethods]
 impl Lemmatizer {
     #[new]
-    pub fn new(lemma_map_path: PathBuf) -> Result<Self, pyo3::PyErr> {
-        let lemma_map = Self::load_map(lemma_map_path)
+    pub fn new(lemma_map_path: String) -> Result<Self, pyo3::PyErr> {
+        let lemma_map = Self::load_map(PathBuf::from(lemma_map_path))
             .map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
 
         let mut derivative_map = HashMap::new();
@@ -96,8 +98,7 @@ impl Processor for Lemmatizer {
                     .collect(),
             )),
             _ => Err(LibError::InvalidInput(
-                "Lemmatizer".to_string(),
-                "Data::VecCowStr".to_string(),
+                "Lemmatizer only accepts Data::VecCowStr as input".to_string(),
             )),
         }
     }
@@ -110,13 +111,13 @@ mod tests {
     use std::io::Write;
     use tempfile::TempDir;
 
-    fn create_test_csv(content: &str) -> (TempDir, PathBuf) {
+    fn create_test_csv(content: &str) -> (TempDir, String) {
         let dir = TempDir::new().expect("Failed to create temp dir");
         let file_path = dir.path().join("lemma_map.csv");
         let mut file = File::create(&file_path).expect("Failed to create temp file");
         write!(file, "{}", content).expect("Failed to write test data");
         file.flush().expect("Failed to flush file");
-        (dir, file_path)
+        (dir, file_path.to_string_lossy().to_string())
     }
 
     #[test]
@@ -294,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_invalid_csv_path() {
-        let result = Lemmatizer::new(PathBuf::from("nonexistent.csv"));
+        let result = Lemmatizer::new("nonexistent.csv".to_string());
         assert!(result.is_err()); // TODO: Check for specific error
     }
 

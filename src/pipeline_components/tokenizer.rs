@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct Tokenizer;
 
 #[pymethods]
@@ -30,6 +31,12 @@ impl Default for Tokenizer {
 impl Processor for Tokenizer {
     fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError> {
         match input {
+            Data::OwnedStr(s) => Ok(Data::VecCowStr(
+                s.split_whitespace()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| Cow::Owned(s.to_string()))
+                    .collect(),
+            )),
             Data::CowStr(s) => Ok(Data::VecCowStr(
                 s.split_whitespace()
                     .filter(|s| !s.is_empty())
@@ -37,8 +44,7 @@ impl Processor for Tokenizer {
                     .collect(),
             )),
             _ => Err(LibError::InvalidInput(
-                "Tokenizer".to_string(),
-                "Data::CowStr".to_string(),
+                "Tokenizer only accepts Data::CowStr or Data::OwnedStr as input".to_string(),
             )),
         }
     }

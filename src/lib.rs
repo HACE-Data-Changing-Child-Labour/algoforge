@@ -1,9 +1,13 @@
 mod error;
+mod model;
 mod pipeline_builder;
+#[macro_use]
 mod pipeline_components;
 
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
+use crossbeam::channel::Receiver;
+use model::{ProcessingRequest, ProcessingResult, ResultIterator};
 use pipeline_builder::{Data, Pipeline};
 use pipeline_components::{
     Lemmatizer, PorterStemmer, PostProcessor, PreProcessor, SpellingMapper, ToLowerCase, Tokenizer,
@@ -13,18 +17,27 @@ use pyo3::{
     types::{PyModule, PyModuleMethods},
     Bound, PyAny, PyErr, PyObject, PyRef, PyResult, Python,
 };
+
 use pythonize::pythonize;
+use rayon::{
+    iter::{IntoParallelIterator, ParallelIterator},
+    ThreadPoolBuilder,
+};
 use serde_json::Value;
 
 #[pyclass]
-pub struct PyPipeline {
+pub struct ProcPipeline {
     pipeline: Arc<Pipeline>,
 }
 
 #[pymethods]
-impl PyPipeline {
+impl ProcPipeline {
     #[new]
     pub fn new() -> Self {
+        ThreadPoolBuilder::new()
+            .num_threads(num_cpus::get())
+            .build_global()
+            .unwrap();
         Self {
             pipeline: Arc::new(Pipeline::new()),
         }
@@ -32,53 +45,75 @@ impl PyPipeline {
 
     pub fn build_pipeline(&mut self, py: Python, processors: Vec<PyObject>) -> PyResult<()> {
         let mut pipeline = Pipeline::new();
-        pipeline.add_processor(PreProcessor);
 
         for processor_obj in processors {
-            if processor_obj.extract::<PyRef<ToLowerCase>>(py).is_ok() {
-                pipeline.add_processor(ToLowerCase);
-            } else if processor_obj.extract::<PyRef<Tokenizer>>(py).is_ok() {
-                pipeline.add_processor(Tokenizer);
-            } else if processor_obj.extract::<PyRef<SpellingMapper>>(py).is_ok() {
-                pipeline.add_processor(
-                    SpellingMapper::new(PathBuf::from("data/spelling_map.csv")).unwrap(),
-                );
-            } else if processor_obj.extract::<PyRef<Lemmatizer>>(py).is_ok() {
-                pipeline
-                    .add_processor(Lemmatizer::new(PathBuf::from("data/lemma_map.csv")).unwrap());
-            } else if processor_obj.extract::<PyRef<PorterStemmer>>(py).is_ok() {
-                pipeline.add_processor(PorterStemmer);
-            } else {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                    "Invalid processor type".to_string(),
-                ));
-            }
+            build_dyn_proc_mappings!(
+                py,
+                &mut pipeline,
+                processor_obj,
+                [
+                    PreProcessor,
+                    PostProcessor,
+                    ToLowerCase,
+                    Tokenizer,
+                    SpellingMapper,
+                    Lemmatizer,
+                    PorterStemmer
+                ]
+            );
         }
-
-        pipeline.add_processor(PostProcessor);
 
         self.pipeline = Arc::new(pipeline);
         Ok(())
     }
 
-    pub fn process(&self, py: Python, input: String) -> PyResult<PyObject> {
-        let result = self
-            .pipeline
-            .process(Data::OwnedStr(input))
-            .expect("Failed to process input");
+    pub fn process(
+        &self,
+        _py: Python,
+        requests: Vec<(String, String)>,
+    ) -> PyResult<ResultIterator> {
+        let requests = requests
+            .into_iter()
+            .map(|(id, input)| ProcessingRequest { id, input })
+            .collect();
 
-        let matched = match result {
-            Data::Json(j) => j,
-            _ => panic!("Expected Data::Json"),
-        };
+        let result_rx = process_batch(self.pipeline.clone(), requests);
 
-        // Convert result to a Python object
-        let python_result = serde_to_py(py, &matched)?;
-        Ok(python_result.into())
+        Ok(ResultIterator {
+            receiver: result_rx,
+        })
     }
 }
 
-impl Default for PyPipeline {
+pub fn process_batch(
+    pipeline: Arc<Pipeline>,
+    requests: Vec<ProcessingRequest>,
+) -> Receiver<ProcessingResult> {
+    let (result_tx, result_rx) = crossbeam::channel::bounded(100);
+    let requests = requests.clone();
+    let pipeline = pipeline.clone();
+
+    std::thread::spawn(move || {
+        requests
+            .into_par_iter()
+            .for_each_with(result_tx, move |result_tx, req| {
+                let result = pipeline.process(Data::OwnedStr(req.input.clone())).unwrap();
+                let result = match result {
+                    Data::VecCowStr(v) => ProcessingResult {
+                        id: req.id,
+                        content: v.clone().iter().map(|s| s.as_bytes().to_vec()).collect(),
+                    },
+                    _ => panic!("Expected Data::Json"),
+                };
+
+                let _ = result_tx.send(result);
+            });
+    });
+
+    result_rx
+}
+
+impl Default for ProcPipeline {
     fn default() -> Self {
         Self::new()
     }
@@ -97,11 +132,15 @@ pub fn serde_to_py<'a>(py: Python<'a>, value: &'a Value) -> PyResult<Bound<'a, P
 
 #[pymodule]
 fn algoforge(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<PyPipeline>()?;
+    m.add_class::<ResultIterator>()?;
+    m.add_class::<ProcPipeline>()?;
+    m.add_class::<PreProcessor>()?;
+    m.add_class::<PostProcessor>()?;
     m.add_class::<Tokenizer>()?;
     m.add_class::<SpellingMapper>()?;
     m.add_class::<Lemmatizer>()?;
     m.add_class::<ToLowerCase>()?;
     m.add_class::<PorterStemmer>()?;
+    m.add_class::<ProcessingRequest>()?;
     Ok(())
 }

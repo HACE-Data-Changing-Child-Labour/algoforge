@@ -17,6 +17,7 @@ use crate::{
 /// Uses the `porter_stemmer` crate.
 /// https://crates.io/crates/porter_stemmer
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct PorterStemmer;
 
 #[pymethods]
@@ -43,8 +44,7 @@ impl Processor for PorterStemmer {
                     .collect(),
             )),
             _ => Err(LibError::InvalidInput(
-                "PorterStemmer".to_string(),
-                "Data::VecCowStr".to_string(),
+                "PorterStemmer only accepts Data::VecCowStr as input".to_string(),
             )),
         }
     }

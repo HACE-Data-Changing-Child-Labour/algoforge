@@ -1,19 +1,27 @@
-__version__ = "0.1.0"
-
-from .algoforge import (
-    PyPipeline as Pipeline,
+from .lib import (
+    ProcessingRequest,
+    ProcPipeline,
+    ResultItem,
+)
+from .processor_defs import (
     Lemmatizer,
-    SpellingMapper,
-    ToLowerCase,
-    Tokenizer,
     PorterStemmer,
+    PostProcessor,
+    PreProcessor,
+    SpellingMapper,
+    Tokenizer,
+    ToLowerCase,
 )
 
 __all__ = [
-    "Pipeline",
+    "ProcPipeline",
+    "ProcessingRequest",
     "Lemmatizer",
+    "PostProcessor",
+    "PreProcessor",
     "SpellingMapper",
     "ToLowerCase",
     "Tokenizer",
     "PorterStemmer",
+    "ResultItem",
 ]

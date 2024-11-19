@@ -12,22 +12,8 @@ use crate::{
 /// keys in the dictionary
 /// SOURCE: Breame project
 /// https://github.com/cdpierse/breame/blob/main/breame/data/spelling_constants.py
-/// * Example:
-/// ```
-/// let spelling_mapper = SpellingMapper {
-///     spelling_map: HashMap::from([
-///         ("labor".to_string(), "labour".to_string()),
-///         ("aluminum".to_string(), "aluminium".to_string()),
-///     ]),
-/// };
-///
-/// let input = vec!["labor", "aluminum"];
-///
-/// let output = spelling_mapper.process(input);
-///
-/// assert_eq!(output, vec!["labour", "aluminium"]);
-/// ```
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct SpellingMapper {
     spelling_map: HashMap<String, String>,
 }
@@ -35,8 +21,8 @@ pub struct SpellingMapper {
 #[pymethods]
 impl SpellingMapper {
     #[new]
-    pub fn new(spelling_map_path: PathBuf) -> Result<Self, pyo3::PyErr> {
-        let spelling_map = Self::load_spelling_map(spelling_map_path)
+    pub fn new(spelling_map_path: String) -> Result<Self, pyo3::PyErr> {
+        let spelling_map = Self::load_spelling_map(PathBuf::from(spelling_map_path))
             .map_err(|e| PyErr::new::<PyRuntimeError, _>(format!("{}", e)))?;
         Ok(Self { spelling_map })
     }
@@ -85,8 +71,7 @@ impl Processor for SpellingMapper {
                     .collect(),
             )),
             _ => Err(LibError::InvalidInput(
-                "SpellingMapper".to_string(),
-                "Data::VecCowStr".to_string(),
+                "SpellingMapper only accepts Data::VecCowStr as input".to_string(),
             )),
         }
     }
@@ -100,18 +85,18 @@ mod tests {
     use tempfile::TempDir;
 
     // Helper function to create a temporary CSV file with spelling mappings
-    fn create_test_csv(content: &str) -> (TempDir, PathBuf) {
+    fn create_test_csv(content: &str) -> (TempDir, String) {
         let dir = TempDir::new().expect("Failed to create temp dir");
         let file_path = dir.path().join("spelling_map.csv");
         let mut file = File::create(&file_path).expect("Failed to create temp file");
         write!(file, "{}", content).expect("Failed to write test data");
         file.flush().expect("Failed to flush file");
-        (dir, file_path)
+        (dir, file_path.to_string_lossy().to_string())
     }
 
     #[test]
     fn test_invalid_csv_path() {
-        let result = SpellingMapper::new(PathBuf::from("nonexistent.csv"));
+        let result = SpellingMapper::new("nonexistent.csv".to_string());
         assert!(result.is_err());
     }
 
