@@ -1,11 +1,9 @@
 use std::borrow::Cow;
 
 use pyo3::{pyclass, pymethods};
+use serde_json::Value;
 
-use crate::{
-    error::LibError,
-    pipeline_builder::{Data, Processor},
-};
+use crate::{error::LibError, model::Data, pipeline_builder::Processor};
 
 /// This is a pre-processor that does not modify the input
 /// but instead returns an owned string
@@ -37,5 +35,9 @@ impl Processor for PreProcessor {
                 "PreProcessor only accepts Data::OwnedStr as input".to_string(),
             ))?,
         }
+    }
+
+    fn to_json(&self, _data: &Data<'_>) -> Result<Value, LibError> {
+        unimplemented!("PreProcessor should never output Json")
     }
 }

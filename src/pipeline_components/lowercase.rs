@@ -1,11 +1,9 @@
 use std::borrow::Cow;
 
 use pyo3::{pyclass, pymethods};
+use serde_json::Value;
 
-use crate::{
-    error::LibError,
-    pipeline_builder::{Data, Processor},
-};
+use crate::{error::LibError, model::Data, pipeline_builder::Processor};
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -35,8 +33,21 @@ impl Processor for ToLowerCase {
             )),
             Data::CowStr(s) => Ok(Data::CowStr(Cow::Owned(s.to_lowercase()))),
             Data::OwnedStr(s) => Ok(Data::CowStr(Cow::Owned(s.to_lowercase()))),
-            Data::Json(_) => Err(LibError::InvalidInput(
-                "ToLowerCase does not accept Data::Json as input".to_string(),
+            _ => Err(LibError::InvalidInput(
+                "ToLowerCase does not accept this type".to_string(),
+            )),
+        }
+    }
+
+    fn to_json(&self, data: &Data<'_>) -> Result<Value, LibError> {
+        match data {
+            Data::VecCowStr(v) => {
+                serde_json::to_value(v).map_err(|e| LibError::Json(e.to_string()))
+            }
+            Data::CowStr(s) => serde_json::to_value(s).map_err(|e| LibError::Json(e.to_string())),
+            Data::OwnedStr(s) => serde_json::to_value(s).map_err(|e| LibError::Json(e.to_string())),
+            _ => Err(LibError::InvalidInput(
+                "ToLowerCase will never output this type".to_string(),
             )),
         }
     }

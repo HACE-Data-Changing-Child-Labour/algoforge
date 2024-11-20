@@ -1,11 +1,9 @@
 use std::borrow::Cow;
 
 use pyo3::{pyclass, pymethods};
+use serde_json::Value;
 
-use crate::{
-    error::LibError,
-    pipeline_builder::{Data, Processor},
-};
+use crate::{error::LibError, model::Data, pipeline_builder::Processor};
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -45,6 +43,18 @@ impl Processor for Tokenizer {
             )),
             _ => Err(LibError::InvalidInput(
                 "Tokenizer only accepts Data::CowStr or Data::OwnedStr as input".to_string(),
+            )),
+        }
+    }
+
+    fn to_json(&self, data: &Data<'_>) -> Result<Value, LibError> {
+        match data {
+            Data::VecCowStr(v) => Ok(serde_json::json!(v
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>())),
+            _ => Err(LibError::InvalidInput(
+                "Tokenizer will never output this type".to_string(),
             )),
         }
     }

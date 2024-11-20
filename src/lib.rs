@@ -7,8 +7,8 @@ mod pipeline_components;
 use std::sync::Arc;
 
 use crossbeam::channel::Receiver;
-use model::{ProcessingRequest, ProcessingResult, ResultIterator};
-use pipeline_builder::{Data, Pipeline};
+use model::{Data, ProcessingRequest, ProcessingResult, ResultIterator};
+use pipeline_builder::Pipeline;
 use pipeline_components::{
     Lemmatizer, PorterStemmer, PostProcessor, PreProcessor, SpellingMapper, ToLowerCase, Tokenizer,
 };
@@ -98,12 +98,9 @@ pub fn process_batch(
             .into_par_iter()
             .for_each_with(result_tx, move |result_tx, req| {
                 let result = pipeline.process(Data::OwnedStr(req.input.clone())).unwrap();
-                let result = match result {
-                    Data::VecCowStr(v) => ProcessingResult {
-                        id: req.id,
-                        content: v.clone().iter().map(|s| s.as_bytes().to_vec()).collect(),
-                    },
-                    _ => panic!("Expected Data::Json"),
+                let result = ProcessingResult {
+                    id: req.id,
+                    content: result,
                 };
 
                 let _ = result_tx.send(result);

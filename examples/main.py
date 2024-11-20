@@ -1,15 +1,17 @@
 import os
 import time
 
-from algoforge import ProcPipeline, ProcessingRequest
 from algoforge import (
     Lemmatizer,
     PreProcessor,
     SpellingMapper,
     ToLowerCase,
     Tokenizer,
+    ProcPipeline,
+    ProcessingRequest,
+    PostProcessorContent,
+    PostProcessor,
 )
-from algoforge.processor_defs import PostProcessor
 
 
 def get_text_content():
@@ -17,14 +19,12 @@ def get_text_content():
 
 
 def main():
-    pipeline = ProcPipeline(
+    pipeline = ProcPipeline[PostProcessorContent](
         [
             PreProcessor(),
             Tokenizer(),
             ToLowerCase(),
-            SpellingMapper(
-                "data/spelling_map.csv"
-            ),  # Uses default US/UK spelling mappings
+            SpellingMapper("data/spelling_map.csv"),  # Uses default US/UK mappings
             Lemmatizer("data/lemma_map.csv"),  # Uses English lemma database
             PostProcessor(),
         ]
@@ -36,10 +36,7 @@ def main():
     for res in iterator:
         if res is not None:
             if res.content is not None:
-                content_items = "', '".join(
-                    bytes(content).decode("utf-8") for content in res.content
-                )
-                print(f"{res.id}: ['{content_items}']")
+                print(f"{res.id}: {res.content}")
 
     time_end = time.time()
 

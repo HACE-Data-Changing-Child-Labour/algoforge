@@ -1,18 +1,14 @@
 use core::fmt;
-use std::borrow::Cow;
 
-use crate::error::LibError;
+use serde_json::Value;
 
-#[derive(Debug)]
-pub enum Data<'a> {
-    OwnedStr(String),
-    CowStr(Cow<'a, str>),
-    VecCowStr(Vec<Cow<'a, str>>),
-    Json(serde_json::Value),
-}
+use crate::{error::LibError, model::Data};
 
 pub trait Processor: Send + Sync + fmt::Debug {
     fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError>;
+
+    fn to_json(&self, data: &Data<'_>) -> Result<Value, LibError>;
+
     /// Only used for debugging purposes
     /// don't override the default implementation
     /// unless there's a good reason to
@@ -59,6 +55,10 @@ where
         let intermediate = self.first.process(input)?;
         self.second.process(intermediate)
     }
+
+    fn to_json(&self, data: &Data<'_>) -> Result<Value, LibError> {
+        self.second.to_json(data)
+    }
 }
 
 pub struct Pipeline {
@@ -98,9 +98,17 @@ impl Pipeline {
         self.processors.push(Box::new(processor));
     }
 
-    pub fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError> {
-        self.processors
+    pub fn process(&self, input: Data<'_>) -> Result<Value, LibError> {
+        let last_processor = self
+            .processors
+            .last()
+            .ok_or_else(|| LibError::InvalidInput("No processors in pipeline".to_string()))?;
+
+        let res = self
+            .processors
             .iter()
-            .try_fold(input, |data, proc| proc.process(data))
+            .try_fold(input, |data, proc| proc.process(data));
+
+        last_processor.to_json(&res?)
     }
 }

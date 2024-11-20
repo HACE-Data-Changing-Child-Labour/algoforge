@@ -1,49 +1,31 @@
 from collections.abc import Iterator
-from typing import Any, Optional
+from typing import Any, Generic, Optional, TypeVar
 from .algoforge import ProcPipeline as RustProcPipeline
+from dataclasses import dataclass
+
+__constructs__ = ["ProcessingRequest", "ResultItem", "ProcPipeline"]
+
+T = TypeVar("T")
 
 
+@dataclass
 class ProcessingRequest:
-    def __init__(self, id: str, input: str):
-        """
-        Initialize `ProcessingRequest` with an ID and URL.
-        """
-        self.id = id
-        self.input = input
-
-    def __repr__(self) -> str:
-        return f"ProcessingRequest(id='{self.id}')"
+    id: str
+    input: str
 
 
-class ResultItem:
-    def __init__(
-        self,
-        id: str,
-        content: Optional[list[bytearray]] = None,
-    ):
-        """
-        Initialize `ResultItem` with a URL, optional content, and optional error message.
-
-        Args:
-            url (str): The URL that was scraped.
-            content (Optional[bytearray]): The content retrieved from the URL as a `bytearray`.
-            error (Optional[str]): An error message if the scraping failed.
-        """
-        self.id = id
-        self.content = content
-
-    def __repr__(self) -> str:
-        if self.content is not None:
-            return (
-                f"ResultItem(id='{self.id}', content_length={len(self.content)} bytes)"
-            )
-        else:
-            return f"ResultItem(id='{self.id}', status='No content')"
+@dataclass
+class ResultItem[T]:
+    id: str
+    content: Optional[T] = None
 
 
-class ProcPipeline:
+class ProcPipeline(Generic[T]):
     """
     A processing pipeline that leverages Rust for efficient text processing.
+    Type parameter `T` is the type of the output of the pipeline.
+    This is used to infer the type of the `content` field of `ResultItem`
+    and is helpful when using the output of the result iterator.
 
     Example:
         >>> pipeline = ProcPipeline([
@@ -67,13 +49,20 @@ class ProcPipeline:
         Raises:
             TypeError: If processors aren't chainable in the given order
         """
+
+        if not processors:
+            raise ValueError("No processors provided")
+
         self._pipeline = RustProcPipeline()
+        self._last_processor = processors[-1]
+
         inner_processors = [
             getattr(processor, "_processor", processor) for processor in processors
         ]
+
         self._pipeline.build_pipeline(inner_processors)
 
-    def process(self, requests: list[ProcessingRequest]) -> Iterator[ResultItem]:
+    def process(self, requests: list[ProcessingRequest]) -> Iterator[ResultItem[T]]:
         """
         Process documents through the pipeline.
 
