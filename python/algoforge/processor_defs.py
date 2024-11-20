@@ -9,6 +9,26 @@ from .algoforge import (
     PorterStemmer as RustPorterStemmer,
 )
 
+__constructs__ = [
+    "Tokenizer",
+    "SpellingMapper",
+    "Lemmatizer",
+    "ToLowerCase",
+    "PreProcessor",
+    "PostProcessor",
+    "PorterStemmer",
+]
+
+__typings__ = [
+    "TokenizerContent",
+    "SpellingMapperContent",
+    "LemmatizerContent",
+    "ToLowerCaseContent",
+    "PreProcessorContent",
+    "PostProcessorContent",
+    "PorterStemmerContent",
+]
+
 type TokenizerContent = list[str]
 type SpellingMapperContent = list[str]
 type LemmatizerContent = list[str]

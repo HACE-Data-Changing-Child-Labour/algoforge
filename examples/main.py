@@ -1,15 +1,17 @@
 import os
 import time
 
-from algoforge import ProcPipeline, ProcessingRequest
 from algoforge import (
     Lemmatizer,
     PreProcessor,
     SpellingMapper,
     ToLowerCase,
     Tokenizer,
+    ProcPipeline,
+    ProcessingRequest,
+    PostProcessorContent,
+    PostProcessor,
 )
-from algoforge.processor_defs import PostProcessor, PostProcessorContent
 
 
 def get_text_content():
@@ -22,9 +24,7 @@ def main():
             PreProcessor(),
             Tokenizer(),
             ToLowerCase(),
-            SpellingMapper(
-                "data/spelling_map.csv"
-            ),  # Uses default US/UK spelling mappings
+            SpellingMapper("data/spelling_map.csv"),  # Uses default US/UK mappings
             Lemmatizer("data/lemma_map.csv"),  # Uses English lemma database
             PostProcessor(),
         ]

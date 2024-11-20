@@ -1,7 +1,9 @@
 from collections.abc import Iterator
-from typing import Any, Generic, Optional, Protocol, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 from .algoforge import ProcPipeline as RustProcPipeline
 from dataclasses import dataclass
+
+__constructs__ = ["ProcessingRequest", "ResultItem", "ProcPipeline"]
 
 T = TypeVar("T")
 

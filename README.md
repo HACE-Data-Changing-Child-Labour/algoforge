@@ -31,56 +31,99 @@ NOTE: This is an internal HACE library, and is not intended to
 be published to PyPI or any other public package repository.
 **It should only be used internally by HACE.**
 
-```bash
-# In HACE CI/CD environments:
-pip install git+https://{GITHUB_TOKEN}@github.com/HACE-Data-Changing-Child-Labour/algoforge.git@{BRANCH}
+Due to a lack of private PyPI registry support from GitHub,
+the most optimal way to add Algoforge to a HACE project is via git submodules.
 
-# In local development:
-pip install git+https://{GITHUB_PAT}@github.com/HACE-Data-Changing-Child-Labour/algoforge.git@{BRANCH}
+To add Algoforge to a HACE project, run the following command:
+
+```bash
+git submodule add https://github.com/HACE-Data-Changing-Child-Labour/algoforge.git ./vendor/hace/algoforge
+
+# To initialize:
+git submodule init
+
+# To update:
+git submodule update --remote --merge
+
+# To remove:
+git submodule deinit -f ./vendor/hace/algoforge
+git rm ./vendor/hace/algoforge
+
 ```
 
-If using a local development environment,
-you will need to create a GitHub personal access token
-and include it in the pip command.
+```bash
+# Can also be installed via pip if you have a GitHub personal access token set up
+pip install git+https://{GITHUB_PAT}@github.com/HACE-Data-Changing-Child-Labour/algoforge.git@{BRANCH}
+```
 
 ## Quick Start
 
 ```python
-from algoforge import PyPipeline, Tokenizer, ToLowerCase, SpellingMapper, Lemmatizer
+from algoforge import ProcPipeline, Tokenizer, ToLowerCase, SpellingMapper,
+Lemmatizer, PostProcessorContent
 
-# Initialize pipeline
-pipeline = PyPipeline()
-
-# Configure processors
-processors = [
+# Initialize pipeline with a list of processors
+# and the type of the output of the pipeline
+pipeline = PyPipeline[PostProcessorContent]([
     Tokenizer(),
     ToLowerCase(),
     SpellingMapper(),  # Uses default US/UK spelling mappings
     Lemmatizer()       # Uses English lemma database
+])
+
+requests = [
+    ProcessingRequest("1", "The connected connections are connecting"),
+    ProcessingRequest("2", "The connected connections are connecting"),
+    ProcessingRequest("3", "The connected connections are connecting"),
 ]
 
-# Build pipeline
-pipeline.build_pipeline(processors)
-
 # Process text
-result = pipeline.process("The connected connections are connecting")
+# returns Iterator[ResultItem[PostProcessorContent]]
+iterator = pipeline.process(requests)
+
+# Iterate over the results
+# Note that results are streamed back to python as they are processed
+# rather than waiting for the entire pipeline to complete, and handing
+# back a huge list of results
+for res in iterator:
+    if res is not None:
+        if res.content is not None:
+            print(f"{res.id}: {res.content}") # Content is typed as PostProcessorContent
+
+
+# Alternatively, a Generator can be used
+# This is more in line with how Rust hands back results
+for res in iter:
+    if res.content is not None:
+        yield (res.id, res.content)
+
 ```
 
-## Pipeline Components
+## Adding Processors
 
-- **Tokenizer**: Splits text into individual tokens
-- **ToLowerCase**: Converts text to lowercase
-- **SpellingMapper**: Standardizes spelling variations (e.g., color → colour)
-- **Lemmatizer**: Reduces words to their base form using the British National Corpus
-- **PorterStemmer**: Implements the Porter Stemming algorithm
-- **PreProcessor** & **PostProcessor**: Handle input/output transformations
+Processor creation is not supported via the Python API, and likely never will be.
+The standard way to add a new processor is as follows:
 
-Note: The **PreProcessor** and **PostProcessor** components are not exposed
-via the Python API, but are used in the construction of every pipeline.
+1. Create a new Rust struct that implements the `Processor` trait
 
-**PreProcessor** is used to convert the input text to a vector of `Cow<str>`,
-**PostProcessor** is used to convert the output data of the last processor component
-in the processing chain to a JSON-serializable Python object.
+   1. To maintain chainability of processors, ensure that all data types
+      (defined in `Data` enum) the processor is intended to support are
+      implemented.
+   2. Make sure to limit the number of Copy and Clone operations in
+      order to maintain high performance.
+   3. Add appropriate unit tests for the processor,
+      and try to avoid "testing" the compiler or the language itself.
+      (quite easy to end up here in Rust)
+
+2. Create the corresponding Python class in `processor_defs.py`
+
+   1. This is only used to provide type hints for the Python API
+      as trying to do this via PyO3 is not very ergonomic
+   2. Define a type/dataclass for the output of the processor
+      (e.g., `TokenizerContent`, `SpellingMapperContent`, etc.)
+   3. Add the new constructs to the appropriate lists in `processor_defs.py`
+
+3. Provide an example of how to use the processor in `examples/`
 
 ## Performance
 
@@ -92,19 +135,15 @@ The library uses Rust's zero-cost abstractions and parallel processing capabilit
 
 ## Data Files
 
-The library is designed to have sane defaults for data files.
-However, you can override the default paths by passing the appropriate
-paths to the relevant components via the Python API.
-
-These default files are located in the `/data` directory:
+The library is designed with no default data files.
+However, you there are default data files included in the `/data` directory.
+These are used for unit tests and examples internally,
+but are fully complete for their intended use cases.
 
 - `spelling_map.csv`: US/UK spelling mappings
-  (note that `keys=alternative spellings`, `values=target words`)
 - `lemma_map.csv`: Lemmatization dictionary
-  (note that `keys=lemmas`, `values=derivatives`)
 
 ## Acknowledgments
 
 - Lemmatization data derived from the British National Corpus
-- Spelling standardization inspired
-  by the [Breame](https://pypi.org/project/breame/) project
+- Spelling standardization inspired by the [Breame](https://pypi.org/project/breame/) project
