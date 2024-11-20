@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict, List
 from .algoforge import (
     Tokenizer as RustTokenizer,
     SpellingMapper as RustSpellingMapper,
@@ -29,13 +29,13 @@ __typings__ = [
     "PorterStemmerContent",
 ]
 
-type TokenizerContent = list[str]
-type SpellingMapperContent = list[str]
-type LemmatizerContent = list[str]
-type ToLowerCaseContent = list[str]
-type PreProcessorContent = str
-type PostProcessorContent = dict[str, Any]
-type PorterStemmerContent = list[str]
+TokenizerContent = List[str]
+SpellingMapperContent = List[str]
+LemmatizerContent = List[str]
+ToLowerCaseContent = List[str]
+PreProcessorContent = str
+PostProcessorContent = Dict[str, Any]
+PorterStemmerContent = List[str]
 
 
 class Tokenizer:
