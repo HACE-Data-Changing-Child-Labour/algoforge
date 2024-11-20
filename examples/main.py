@@ -9,7 +9,7 @@ from algoforge import (
     ToLowerCase,
     Tokenizer,
 )
-from algoforge.processor_defs import PostProcessor
+from algoforge.processor_defs import PostProcessor, PostProcessorContent
 
 
 def get_text_content():
@@ -17,7 +17,7 @@ def get_text_content():
 
 
 def main():
-    pipeline = ProcPipeline(
+    pipeline = ProcPipeline[PostProcessorContent](
         [
             PreProcessor(),
             Tokenizer(),
@@ -36,10 +36,7 @@ def main():
     for res in iterator:
         if res is not None:
             if res.content is not None:
-                content_items = "', '".join(
-                    bytes(content).decode("utf-8") for content in res.content
-                )
-                print(f"{res.id}: ['{content_items}']")
+                print(f"{res.id}: {res.content}")
 
     time_end = time.time()
 

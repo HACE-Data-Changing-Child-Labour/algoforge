@@ -1,11 +1,9 @@
 use std::borrow::Cow;
 
 use pyo3::{pyclass, pymethods};
+use serde_json::Value;
 
-use crate::{
-    error::LibError,
-    pipeline_builder::{Data, Processor},
-};
+use crate::{error::LibError, model::Data, pipeline_builder::Processor};
 
 /// Porter Stemming Algorithm.
 /// Reduces words to their base or root form (stem)
@@ -45,6 +43,17 @@ impl Processor for PorterStemmer {
             )),
             _ => Err(LibError::InvalidInput(
                 "PorterStemmer only accepts Data::VecCowStr as input".to_string(),
+            )),
+        }
+    }
+
+    fn to_json(&self, data: &Data<'_>) -> Result<Value, LibError> {
+        match data {
+            Data::VecCowStr(v) => {
+                serde_json::to_value(v).map_err(|e| LibError::Json(e.to_string()))
+            }
+            _ => Err(LibError::InvalidInput(
+                "PorterStemmer will never output this type".to_string(),
             )),
         }
     }

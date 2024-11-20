@@ -1,11 +1,9 @@
 use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 
 use pyo3::{exceptions::PyRuntimeError, pyclass, pymethods, PyErr};
+use serde_json::Value;
 
-use crate::{
-    error::LibError,
-    pipeline_builder::{Data, Processor},
-};
+use crate::{error::LibError, model::Data, pipeline_builder::Processor};
 
 /// Maps the spelling of a provided word
 /// to the target spelling provided as
@@ -72,6 +70,17 @@ impl Processor for SpellingMapper {
             )),
             _ => Err(LibError::InvalidInput(
                 "SpellingMapper only accepts Data::VecCowStr as input".to_string(),
+            )),
+        }
+    }
+
+    fn to_json(&self, data: &Data<'_>) -> Result<Value, LibError> {
+        match data {
+            Data::VecCowStr(v) => {
+                serde_json::to_value(v).map_err(|e| LibError::Json(e.to_string()))
+            }
+            _ => Err(LibError::InvalidInput(
+                "SpellingMapper will never output this type".to_string(),
             )),
         }
     }
