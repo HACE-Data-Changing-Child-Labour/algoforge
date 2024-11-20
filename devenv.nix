@@ -7,7 +7,7 @@
 
   languages.python = {
     enable = true;
-    package = pkgs.python312Packages.python;
+    package = pkgs.python311Packages.python;
     venv = {
       enable = true;
       requirements = ''

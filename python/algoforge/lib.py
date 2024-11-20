@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, List, Optional, TypeVar
 from .algoforge import ProcPipeline as RustProcPipeline
 from dataclasses import dataclass
 
@@ -15,7 +15,7 @@ class ProcessingRequest:
 
 
 @dataclass
-class ResultItem[T]:
+class ResultItem(Generic[T]):
     id: str
     content: Optional[T] = None
 
@@ -39,7 +39,7 @@ class ProcPipeline(Generic[T]):
         >>> results = pipeline.process(requests)
     """
 
-    def __init__(self, processors: list[Any]):
+    def __init__(self, processors: List[Any]):
         """
         Initialize the pipeline with processors.
 
@@ -62,7 +62,7 @@ class ProcPipeline(Generic[T]):
 
         self._pipeline.build_pipeline(inner_processors)
 
-    def process(self, requests: list[ProcessingRequest]) -> Iterator[ResultItem[T]]:
+    def process(self, requests: List[ProcessingRequest]) -> Iterator[ResultItem[T]]:
         """
         Process documents through the pipeline.
 
