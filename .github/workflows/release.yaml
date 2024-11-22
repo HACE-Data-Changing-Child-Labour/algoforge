@@ -1,0 +1,39 @@
+name: Upload to CodeArtifact
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+permissions:
+  id-token: write
+  contents: write
+jobs:
+  upload:
+    name: Upload to CodeArtifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get AWS token
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: eu-west-2
+          role-to-assume: arn:aws:iam::939792010034:role/registry_deploy
+      - name: Download Built Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-linux-x86_64
+          path: dist
+      - name: Install maturin
+        run: |
+          python -m pip install --upgrade pip
+          pip install maturin
+      - name: Publish Artifacts to CodeArtifact
+        run: |
+          maturin publish \
+            --username aws \
+            --password $(aws codeartifact get-authorization-token \
+              --domain hace-package-registry \
+              --domain-owner 939792010034 \
+              --query authorizationToken --output text) \
+            --repository-url https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/ \
+            --non-interactive \
+            --skip-existing
