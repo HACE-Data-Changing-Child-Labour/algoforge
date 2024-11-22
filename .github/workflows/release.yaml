@@ -76,6 +76,14 @@ jobs:
         with:
           aws-region: eu-west-2
           role-to-assume: arn:aws:iam::939792010034:role/registry_deploy
+      - name: Get CodeArtifact token
+        id: codeartifact-token
+        run: |
+          echo "MATURIN_PYPI_TOKEN=$(aws codeartifact get-authorization-token \
+            --domain hace-package-registry \
+            --domain-owner 939792010034 \
+            --query authorizationToken --output text)" >> $GITHUB_ENV
+          echo "MATURIN_PYPI_URL=https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/" >> $GITHUB_ENV
       - uses: actions/download-artifact@v4
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
@@ -84,13 +92,8 @@ jobs:
       - name: Publish Artifacts to CodeArtifact
         uses: PyO3/maturin-action@v1
         env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.AWS_CODEARTIFACT_TOKEN }}
-        run: |
-          export MATURIN_PYPI_TOKEN=$(aws codeartifact get-authorization-token \
-            --domain hace-package-registry \
-            --domain-owner 939792010034 \
-            --query authorizationToken --output text)
-          export MATURIN_PYPI_URL=https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/
+          MATURIN_PYPI_TOKEN: ${{ secrets.MATURIN_PYPI_TOKEN }}
+          MATURIN_PYPI_URL: ${{ secrets.MATURIN_PYPI_URL }}
         with:
           command: upload
           args: --non-interactive --skip-existing dist/*
