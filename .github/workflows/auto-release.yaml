@@ -58,8 +58,10 @@ jobs:
             --repository hace-pypi-registry \
             --region eu-west-2 && \
           pip config list && \
+          cat ~/.config/pip/pip.conf && \
+          cat ~/.config/.pypirc && \
           maturin publish \
-          --repository-url "https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/"
+          --repository-url "https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/simple/"
     # - name: Get Current Version
     #   id: get_version
     #   run: |
