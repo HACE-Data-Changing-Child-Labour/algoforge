@@ -22,28 +22,28 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Full history for versioning
-      - name: Set up Git user
+      # - name: Set up Git user
+      #   run: |
+      #     git config user.name "${{ github.actor }}"
+      #     git config user.email "${{ github.actor }}@users.noreply.github.com"
+      # - name: Set up Rust
+      #   uses: actions-rs/toolchain@v1
+      #   with:
+      #     toolchain: stable
+      # - uses: Swatinem/rust-cache@v2 # Cache Cargo registry
+      # - name: Install cargo-release
+      #   run: cargo install cargo-release
+      # - name: Perform cargo release
+      #   run: cargo release ${{ github.event.inputs.bump_type }} --no-publish --execute
+      - name: Push changes and tags
         run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@v2 # Cache Cargo registry
-      - name: Install cargo-release
-        run: cargo install cargo-release
-      - name: Perform cargo release
-        run: cargo release ${{ github.event.inputs.bump_type }} --no-publish --execute
+          git push origin main
+          git push origin --tags
       - name: Get AWS token
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: eu-west-2
           role-to-assume: arn:aws:iam::939792010034:role/registry_deploy
-      - name: Push changes and tags
-        run: |
-          git push origin main
-          git push origin --tags
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -56,22 +56,21 @@ jobs:
           --username aws \
           --password $(aws codeartifact get-authorization-token \
             --domain hace-package-registry \
-            --domain-owner 939792010034 \
             --query authorizationToken --output text) \
           --repository-url "https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/"
-      - name: Get Current Version
-        id: get_version
-        run: |
-          VERSION=$(cargo pkgid | sed 's/.*#//')
-          echo "::set-output name=version::$VERSION"
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          release_name: Release v${{ steps.get_version.outputs.version }}
-          body: |
-            Release notes here.
-          draft: false
-          prerelease: false
+      # - name: Get Current Version
+      #   id: get_version
+      #   run: |
+      #     VERSION=$(cargo pkgid | sed 's/.*#//')
+      #     echo "::set-output name=version::$VERSION"
+      # - name: Create GitHub Release
+      #   uses: actions/create-release@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     tag_name: v${{ steps.get_version.outputs.version }}
+      #     release_name: Release v${{ steps.get_version.outputs.version }}
+      #     body: |
+      #       Release notes here.
+      #     draft: false
+      #     prerelease: false
