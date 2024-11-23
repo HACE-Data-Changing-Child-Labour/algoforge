@@ -30,22 +30,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      # Cache Cargo registry
-      - name: Cache Cargo registry
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
-      # Cache Cargo Git index
-      - name: Cache Cargo Git index
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-git-
+      - uses: Swatinem/rust-cache@v2 # Cache Cargo registry
       - name: Install cargo-release
         run: cargo install cargo-release
       - name: Perform cargo release
