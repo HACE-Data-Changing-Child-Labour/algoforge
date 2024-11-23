@@ -30,6 +30,22 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      # Cache Cargo registry
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+      # Cache Cargo Git index
+      - name: Cache Cargo Git index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-git-
       - name: Install cargo-release
         run: cargo install cargo-release
       - name: Perform cargo release
@@ -59,7 +75,7 @@ jobs:
             --domain-owner 939792010034 \
             --region eu-west-2
 
-          maturin publish --codeartifact-repository hace-pypi-registry
+          maturin publish
       - name: Get Current Version
         id: get_version
         run: |
