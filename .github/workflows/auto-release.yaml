@@ -11,6 +11,8 @@ on:
         required: true
         default: "patch"
 permissions:
+  id-token: write
+  actions: read
   contents: write
 jobs:
   release:
@@ -31,7 +33,7 @@ jobs:
       - name: Install cargo-release
         run: cargo install cargo-release
       - name: Perform cargo release
-        run: cargo release ${{ github.event.inputs.bump_type }} --no-publish
+        run: cargo release ${{ github.event.inputs.bump_type }} --no-publish --execute
       - name: Push changes and tags
         run: |
           git push origin main
@@ -42,7 +44,7 @@ jobs:
           python-version: "3.x"
       - name: Install Maturin
         run: pip install maturin
-      - name: Set up AWS credentials
+      - name: Get AWS token
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: eu-west-2
