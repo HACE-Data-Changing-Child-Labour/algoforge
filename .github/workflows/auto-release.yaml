@@ -50,17 +50,20 @@ jobs:
         with:
           aws-region: eu-west-2
           role-to-assume: arn:aws:iam::939792010034:role/registry_deploy
-      - name: Build and Publish with Maturin
+      - name: Get CodeArtifact variables
+        id: codeartifact-variables
         run: |
-          # Authenticate with AWS CodeArtifact
-          aws codeartifact login \
-            --tool twine \
-            --repository hace-pypi-registry \
+          echo "CODEARTIFACT_TOKEN=$(aws codeartifact get-authorization-token \
             --domain hace-package-registry \
             --domain-owner 939792010034 \
-            --region eu-west-2
-
-          maturin publish
+            --query authorizationToken --output text)" >> $GITHUB_ENV
+          echo "CODEARTIFACT_URL=https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/" >> $GITHUB_ENV
+      - name: Build and Publish with Maturin
+        run: |
+          maturin publish \
+          --username aws \
+          --password $CODEARTIFACT_TOKEN \
+          --repository-url $CODEARTIFACT_URL
       - name: Get Current Version
         id: get_version
         run: |
