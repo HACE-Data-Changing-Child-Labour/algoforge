@@ -52,11 +52,12 @@ jobs:
         run: pip install maturin
       - name: Build and Publish with Maturin
         run: |
-          maturin publish \
-          --verbose \
-          --username aws \
-          --password $(aws codeartifact get-authorization-token --domain hace-package-registry --query authorizationToken --output text) \
-          --repository-url "https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/"
+          aws codeartifact login \
+            --tool pip \
+            --domain hace-package-registry \
+            --repository hace-pypi-registry \
+            --region eu-west-2 && \
+          maturin publish
     # - name: Get Current Version
     #   id: get_version
     #   run: |
