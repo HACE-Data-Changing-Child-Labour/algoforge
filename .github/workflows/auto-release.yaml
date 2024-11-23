@@ -50,24 +50,13 @@ jobs:
           python-version: "3.x"
       - name: Install Maturin
         run: pip install maturin
-      - name: Get AWS Token
-        id: auth-token
-        run: |
-          TOKEN=$(aws codeartifact get-authorization-token \
-            --domain hace-package-registry \
-            --query authorizationToken \
-            --output text)
-          echo "TOKEN=$TOKEN" >> $GITHUB_ENV
-
-          curl -u "aws:$TOKEN" \
-            https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/simple/
       - name: Build and Publish with Maturin
-        env:
-          CODEARTIFACT_TOKEN: ${{ env.TOKEN }}
         run: |
           maturin publish \
           --username aws \
-          --password $CODEARTIFACT_TOKEN \
+          --password $(aws codeartifact get-authorization-token \
+            --domain hace-package-registry \
+            --query authorizationToken --output text) \
           --repository-url "https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/"
     # - name: Get Current Version
     #   id: get_version
