@@ -58,6 +58,9 @@ jobs:
             --query authorizationToken \
             --output text)
           echo "token=$TOKEN" >> $GITHUB_ENV
+
+          curl -u "aws:$TOKEN" \
+            https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/simple/
       - name: Build and Publish with Maturin
         run: |
           maturin publish \
