@@ -1,0 +1,76 @@
+name: Create Release
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump type: major, minor, or patch"
+        options:
+          - patch
+          - minor
+          - major
+        required: true
+        default: "patch"
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Full history for versioning
+      - name: Set up Git user
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+      - name: Install cargo-release
+        run: cargo install cargo-release
+      - name: Perform cargo release
+        run: cargo release ${{ github.event.inputs.bump_type }} --no-publish
+      - name: Push changes and tags
+        run: |
+          git push origin main
+          git push origin --tags
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+      - name: Install Maturin
+        run: pip install maturin
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: eu-west-2
+          role-to-assume: arn:aws:iam::939792010034:role/registry_deploy
+      - name: Build and Publish with Maturin
+        run: |
+          # Authenticate with AWS CodeArtifact
+          aws codeartifact login \
+            --tool twine \
+            --repository hace-pypi-registry \
+            --domain hace-package-registry \
+            --domain-owner 939792010034 \
+            --region eu-west-2
+
+          maturin publish --codeartifact-repository hace-pypi-registry
+      - name: Get Current Version
+        id: get_version
+        run: |
+          VERSION=$(cargo pkgid | sed 's/.*#//')
+          echo "::set-output name=version::$VERSION"
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          release_name: Release v${{ steps.get_version.outputs.version }}
+          body: |
+            Release notes here.
+          draft: false
+          prerelease: false
