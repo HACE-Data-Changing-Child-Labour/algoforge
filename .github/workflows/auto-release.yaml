@@ -59,7 +59,7 @@ jobs:
           maturin publish \
           --verbose \
           --username aws \
-          --password $TOKEN \
+          --password "$TOKEN" \
           --repository-url "https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/"
     # - name: Get Current Version
     #   id: get_version
