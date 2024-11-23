@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+PYPROJECT_FILE="pyproject.toml"
+CARGO_TOML_FILE="Cargo.toml"
+
 usage() {
     echo "Usage: $0 [major|minor|patch]"
     exit 1
@@ -16,12 +19,8 @@ if [[ "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "pat
     usage
 fi
 
-PYPROJECT_FILE="pyproject.toml"
-CARGO_TOML_FILE="Cargo.toml"
-
 # Extract the current version from the file
-CURRENT_VERSION=$(grep -E '^version = ' "$CARGO_TOML_FILE" | sed -E 's/version = "(.*)"/\1/')
-
+CURRENT_VERSION=$(awk '/^\[package\]/ {flag=1} flag && /^version/ {print; exit}' "$CARGO_TOML_FILE" | sed -E 's/version = "(.*)"/\1/')
 if [ "$CURRENT_VERSION" = "" ]; then
     echo "Error: Could not find the version in $CARGO_TOML_FILE"
     exit 1
@@ -62,8 +61,14 @@ NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 echo "New version: $NEW_VERSION"
 
 # Update the version in the file
-sed -i.bak -E "s/(^version = ).*/\1\"$NEW_VERSION\"/" "$CARGO_TOML_FILE"
-rm "${CARGO_TOML_FILE}.bak"
+awk -v new_version="$NEW_VERSION" '
+    /^\[package\]/ {flag=1}
+    flag && /^version = / {
+        sub(/version = ".*"/, "version = \"" new_version "\"")
+        flag=0
+    }
+    {print}
+' "$CARGO_TOML_FILE" >"$CARGO_TOML_FILE.tmp" && mv "$CARGO_TOML_FILE.tmp" "$CARGO_TOML_FILE"
 
 sed -i.bak -E "s/(^version = ).*/\1\"$NEW_VERSION\"/" "$PYPROJECT_FILE"
 rm "${PYPROJECT_FILE}.bak"
