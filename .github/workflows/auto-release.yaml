@@ -57,6 +57,7 @@ jobs:
             --query authorizationToken --output text)
           echo "Generated Token: $TOKEN"
           maturin publish \
+          --verbose \
           --username aws \
           --password $TOKEN \
           --repository-url "https://hace-package-registry-939792010034.d.codeartifact.eu-west-2.amazonaws.com/pypi/hace-pypi-registry/"
