@@ -54,6 +54,7 @@ jobs:
         run: |
           export TOKEN=$(aws codeartifact get-authorization-token \
             --domain hace-package-registry \
+            --domain-owner 939792010034 \
             --query authorizationToken --output text)
           echo "Generated Token: $TOKEN"
           maturin publish \
