@@ -31,6 +31,7 @@ jobs:
           - runner: ubuntu-latest
             target: ppc64le
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/build_wheels
         with:
           target: ${{ matrix.platform.target }}
@@ -45,6 +46,7 @@ jobs:
           - runner: macos-14
             target: aarch64
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/build_wheels
         with:
           target: ${{ matrix.platform.target }}
@@ -52,4 +54,5 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/build_sdist
