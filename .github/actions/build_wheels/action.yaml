@@ -1,0 +1,33 @@
+name: "Build Wheels"
+description: "Build wheels for a specific platform"
+inputs:
+  target:
+    description: "Build target"
+    required: true
+  python-version:
+    description: "Python version"
+    required: false
+    default: "3.x"
+  manylinux:
+    description: "Manylinux configuration"
+    required: false
+    default: "auto"
+outputs: {}
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Build wheels
+      uses: PyO3/maturin-action@v1
+      with:
+        target: ${{ inputs.target }}
+        args: --release --out dist --find-interpreter
+        manylinux: ${{ inputs.manylinux }}
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ inputs.target }}
+        path: dist

@@ -1,34 +1,12 @@
-name: Publish to AWS CodeArtifact
+name: Publish
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*"
 permissions:
   id-token: write
-  actions: read
-  contents: read
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-      - name: Download artifacts from previous workflows
-        uses: actions/download-artifact@v3
-        with:
-          path: dist
-      - name: Get AWS token
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: eu-west-2
-          role-to-assume: arn:aws:iam::939792010034:role/registry_deploy
-      - name: Publish to CodeArtifact
-        run: |
-          aws codeartifact login \
-            --tool twine \
-            --repository hace-pypi-registry \
-            --domain hace-package-registry \
-            --domain-owner 939792010034 \
-            --region eu-west-2 && \
-          python3 -m pip install --upgrade pip twine && \
-          python3 -m twine upload --repository codeartifact dist/*
+      - uses: ./.github/actions/codeartifact_publish
