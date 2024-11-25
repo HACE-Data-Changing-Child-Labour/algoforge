@@ -1,0 +1,56 @@
+name: Create Draft Release
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump type: major, minor, or patch"
+        options:
+          - patch
+          - minor
+          - major
+        required: true
+        default: "patch"
+permissions:
+  contents: write
+  id-token: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Full history for versioning
+      - name: Set up Git user
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+      - name: Bump version in Cargo.toml
+        run: |
+          cargo install cargo-edit
+          cargo set-version --bump ${{ github.event.inputs.bump_type }}
+      - name: Update version in pyproject.toml
+        run: |
+          NEW_VERSION=$(cargo pkgid | sed 's/.*#//')
+          sed -i "s/^version = .*/version = \"$NEW_VERSION\"/" pyproject.toml
+      - name: Commit changes
+        run: |
+          git add Cargo.toml pyproject.toml
+          git commit -m "Bump version to $NEW_VERSION"
+      - name: Tag the new version
+        run: |
+          git tag v$NEW_VERSION
+          git push origin main
+          git push origin v$NEW_VERSION
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v$NEW_VERSION
+          release_name: Release v$NEW_VERSION
+          body: |
+            ## Changes in v$NEW_VERSION
+            - Updated Cargo.toml and pyproject.toml to version $NEW_VERSION.
+          draft: true
+          prerelease: true
