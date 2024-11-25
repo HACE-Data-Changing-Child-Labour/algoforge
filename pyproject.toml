@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "algoforge"
-version = "0.1.1"
+version = "0.1.0"
 description = "High-performance text processing pipeline construction library"
 authors = [{ name = "Gergo Nemeth", email = "gergo@thisishace.com" }]
 requires-python = ">=3.7"
