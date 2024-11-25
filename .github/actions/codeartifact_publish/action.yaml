@@ -26,4 +26,6 @@ runs:
           --domain hace-package-registry \
           --domain-owner 939792010034 && \
         python3 -m pip install --upgrade pip twine && \
+        ls -la dist && \
+        ls -la dist/wheels-linux-x86_64 && \
         python3 -m twine upload dist/*
