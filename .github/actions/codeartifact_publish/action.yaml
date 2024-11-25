@@ -15,7 +15,7 @@ runs:
     - name: Get AWS token
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        region: eu-west-2
+        aws-region: eu-west-2
         role-to-assume: "arn:aws:iam::939792010034:role/registry_deploy"
     - name: Publish to CodeArtifact
       shell: bash
