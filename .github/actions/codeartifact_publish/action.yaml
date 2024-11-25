@@ -29,4 +29,6 @@ runs:
         python3 -m pip install --upgrade pip twine && \
         ls -la dist; \
         ls -la dist/wheels-linux-x86_64; \
-        python3 -m twine upload --repository codeartifact dist/**/*.{whl,tar.gz}
+        python3 -m twine upload --verbose \
+          --repository codeartifact \
+          dist/**/*.{whl,tar.gz}
