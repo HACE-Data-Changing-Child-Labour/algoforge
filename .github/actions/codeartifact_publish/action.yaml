@@ -28,4 +28,4 @@ runs:
         python3 -m pip install --upgrade pip twine && \
         ls -la dist && \
         ls -la dist/wheels-linux-x86_64 && \
-        python3 -m twine upload dist/*
+        python3 -m twine upload dist/**/*.{whl,tar.gz}
