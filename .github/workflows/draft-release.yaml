@@ -26,9 +26,13 @@ jobs:
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
       - name: Bump version in Cargo.toml
+        id: bump-version
         run: |
           cargo install cargo-edit
           cargo set-version --bump ${{ github.event.inputs.bump_type }}
+          NEW_VERSION=$(cargo pkgid | sed 's/.*#//')
+          echo "new_version=$NEW_VERSION" >> $GITHUB_ENV
+          echo "::set-output name=new_version::$NEW_VERSION"
       - name: Update version in pyproject.toml
         run: |
           NEW_VERSION=$(cargo pkgid | sed 's/.*#//')
@@ -36,21 +40,21 @@ jobs:
       - name: Commit changes
         run: |
           git add Cargo.toml pyproject.toml
-          git commit -m "Bump version to $NEW_VERSION"
+          git commit -m "Bump version to ${{ steps.bump-version.outputs.new_version }}"
       - name: Tag the new version
         run: |
-          git tag v$NEW_VERSION
+          git tag v${{ steps.bump-version.outputs.new_version }}
           git push origin main
-          git push origin v$NEW_VERSION
+          git push origin v${{ steps.bump-version.outputs.new_version }}
       - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v$NEW_VERSION
-          release_name: Release v$NEW_VERSION
+          tag_name: v${{ steps.bump-version.outputs.new_version }}
+          release_name: Release v${{ steps.bump-version.outputs.new_version }}
           body: |
             ## Changes in v$NEW_VERSION
-            - Updated Cargo.toml and pyproject.toml to version $NEW_VERSION.
+            - Updated Cargo.toml and pyproject.toml to version v${{ steps.bump-version.outputs.new_version }}.
           draft: true
           prerelease: true
