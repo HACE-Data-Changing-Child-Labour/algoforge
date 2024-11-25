@@ -25,8 +25,7 @@ runs:
           --repository hace-pypi-registry \
           --domain hace-package-registry \
           --domain-owner 939792010034 && \
-        cat ~/.config/pip/pip.conf; \
-        cat ~/.config/.pypirc; \
+        cat ~/.pypirc; \
         python3 -m pip install --upgrade pip twine && \
         ls -la dist; \
         ls -la dist/wheels-linux-x86_64; \
