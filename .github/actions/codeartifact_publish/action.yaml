@@ -12,18 +12,6 @@ runs:
       uses: actions/download-artifact@v4
       with:
         path: dist
-    - name: Merge artifacts
-      shell: bash
-      run: |
-        mkdir -p dist/merged
-        for dir in dist/*; do
-          if [ -d "$dir" ]; then
-            mv "$dir"/* dist/merged/
-          fi
-        done
-    - name: List merged files
-      shell: bash
-      run: ls -la dist/merged
     - name: Get AWS token
       uses: aws-actions/configure-aws-credentials@v4
       with:
