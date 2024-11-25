@@ -17,6 +17,9 @@ runs:
       with:
         aws-region: eu-west-2
         role-to-assume: "arn:aws:iam::939792010034:role/registry_deploy"
+    - name: List dist folder contents
+      shell: bash
+      run: ls -la dist
     - name: Publish to CodeArtifact
       shell: bash
       run: |
