@@ -1,8 +1,8 @@
 name: "Build Wheels"
 description: "Build wheels for a specific platform"
 inputs:
-  runner:
-    description: "Runner"
+  os:
+    description: "Operating system"
     required: true
   target:
     description: "Build target"
@@ -32,5 +32,5 @@ runs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-${{ inputs.runner }}-${{ inputs.target }}
+        name: wheels-${{ inputs.os }}-${{ inputs.target }}
         path: dist

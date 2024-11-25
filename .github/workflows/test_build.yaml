@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build_wheels
         with:
-          runner: ${{ matrix.platform.runner }}
+          os: linux
           target: ${{ matrix.platform.target }}
   macos:
     runs-on: ${{ matrix.platform.runner }}
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build_wheels
         with:
-          runner: ${{ matrix.platform.runner }}
+          os: macos
           target: ${{ matrix.platform.target }}
   sdist:
     runs-on: ubuntu-latest
