@@ -12,14 +12,23 @@ runs:
       uses: actions/download-artifact@v3
       with:
         path: dist
+    - name: Merge artifacts
+      shell: bash
+      run: |
+        mkdir -p dist/merged
+        for dir in dist/*; do
+          if [ -d "$dir" ]; then
+            mv "$dir"/* dist/merged/
+          fi
+        done
+    - name: List merged files
+      shell: bash
+      run: ls -la dist/merged
     - name: Get AWS token
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-region: eu-west-2
         role-to-assume: "arn:aws:iam::939792010034:role/registry_deploy"
-    - name: List dist folder contents
-      shell: bash
-      run: ls -la dist
     - name: Publish to CodeArtifact
       shell: bash
       run: |
