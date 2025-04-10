@@ -27,13 +27,6 @@ is compatible with the next component's input.
 
 ## Installation
 
-NOTE: This is an internal HACE library, and is not intended to
-be published to PyPI or any other public package repository.
-**It should only be used internally by HACE.**
-
-Due to a lack of private PyPI registry support from GitHub,
-the most optimal way to add Algoforge to a HACE project is via git submodules.
-
 To add Algoforge to a HACE project, run the following command:
 
 ```bash
