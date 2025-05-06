@@ -28,19 +28,43 @@ impl Default for Tokenizer {
 /// therefore we're returning with 'static
 impl Processor for Tokenizer {
     fn process<'a>(&self, input: Data<'a>) -> Result<Data<'a>, LibError> {
+        let discard_char_map: &[_] = &[' ', '\t', '\n', '\r', '\0', '.', ',', '!', '?', ';', ':'];
+
         match input {
-            Data::OwnedStr(s) => Ok(Data::VecCowStr(
-                s.split_whitespace()
+            Data::OwnedStr(s) => {
+                let tokens: Vec<String> = s
+                    .split_whitespace()
                     .filter(|s| !s.is_empty())
-                    .map(|s| Cow::Owned(s.to_string()))
-                    .collect(),
-            )),
-            Data::CowStr(s) => Ok(Data::VecCowStr(
-                s.split_whitespace()
+                    .map(|s| s.to_string())
+                    .collect();
+
+                let out_tokens: Vec<Cow<str>> = tokens
+                    .iter()
+                    .map(|t_str| {
+                        let trimmed = t_str.trim_end_matches(discard_char_map);
+                        Cow::Owned(trimmed.to_string())
+                    })
+                    .collect();
+
+                Ok(Data::VecCowStr(out_tokens))
+            }
+            Data::CowStr(s) => {
+                let tokens: Vec<String> = s
+                    .split_whitespace()
                     .filter(|s| !s.is_empty())
-                    .map(|s| Cow::Owned(s.to_string()))
-                    .collect(),
-            )),
+                    .map(|s| s.to_string())
+                    .collect();
+
+                let out_tokens: Vec<Cow<str>> = tokens
+                    .iter()
+                    .map(|t_str| {
+                        let trimmed = t_str.trim_end_matches(discard_char_map);
+                        Cow::Owned(trimmed.to_string())
+                    })
+                    .collect();
+
+                Ok(Data::VecCowStr(out_tokens))
+            }
             _ => Err(LibError::InvalidInput(
                 "Tokenizer only accepts Data::CowStr or Data::OwnedStr as input".to_string(),
             )),
@@ -180,6 +204,31 @@ mod tests {
             }
         } else {
             panic!("Expected Data::VecCowStr");
+        }
+    }
+
+    #[test]
+    fn test_discard_char_map() {
+        let tokenizer = Tokenizer;
+        let input = Cow::Borrowed("hello; world. this is. a, test, sentence:");
+        let result = tokenizer
+            .process(Data::CowStr(input))
+            .expect("Failed to process input");
+
+        dbg!(&result);
+
+        if let Data::VecCowStr(output_vec) = result {
+            let assert_vec: Vec<String> = vec![
+                "hello".to_string(),
+                "world".to_string(),
+                "this".to_string(),
+                "is".to_string(),
+                "a".to_string(),
+                "test".to_string(),
+                "sentence".to_string(),
+            ];
+
+            assert_eq!(output_vec, assert_vec);
         }
     }
 }
